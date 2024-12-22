@@ -164,3 +164,4 @@ cython_debug/
 recursive
 *.bz2
 arxiv.zip
+arxiv-metadata-oai-snapshot.json

@@ -1,4 +1,5 @@
 import os
+from pyspark.sql import DataFrame, SparkSession
 
 from .loader_utils import *
 
@@ -8,6 +9,12 @@ async def download_pubmed():
         "https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/"
     ])
 
-async def load_pubmed():
-#    await download_pubmed
-    return
+
+async def load_pubmed(spark: SparkSession) -> DataFrame:
+    await asyncio.sleep(0)
+    pubmed_df = spark \
+        .read \
+        .format("xml") \
+        .options(rowTag="PubmedArticle") \
+        .load("./recursive/*.xml.gz")
+    return pubmed_df

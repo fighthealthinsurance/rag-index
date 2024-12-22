@@ -1,10 +1,19 @@
+import re
 from shutil import which
 import os
 import subprocess
 import asyncio
 from typing import List
+from pyspark.sql import DataFrame
 
 from subprocess import CalledProcessError
+
+url_regex = r'(https?://[^\s]+|www\.[^\s]+)'
+doi_regex = r'10\.\d{4,9}/[-._;()/:A-Z0-9]+'
+semi_legit = "(nih.gov|Category:Nutrition|modernmedicine|PLOS Medicine|veterinaryevidence|Portal bar \|Medicine|World Health Organization|cihr-irsc.gc.ca|nihr.ac.uk|nhs.uk)"
+semi_legit_compiled = re.compile(
+    semi_legit,
+    re.IGNORECASE)
 
 async def check_call(cmd, **kwargs):
     process = await asyncio.create_subprocess_exec(*cmd, **kwargs)
@@ -49,3 +58,24 @@ async def _download_recursive(url: str) -> None:
 async def download_recursive(urls: list[str]) -> None:
     awaitables = map(_download_recursive, urls)
     await asyncio.gather(*awaitables)
+
+def is_maybe_relevant(document_text: str) -> bool:
+    if semi_legit.match(document_text):
+        return True
+    else:
+        return False
+
+def filter_relevant_records_based_on_text(df: DataFrame) -> DataFrame:
+    relevant_records = df.filter(
+        regexp(
+            relevant_fields["text"],
+            lit(semi_legit)))
+    return relevant_records
+
+def extract_and_annotate(df: DataFrame) -> DataFrame:
+    """Extract and annotate LINKs and DOIs."""
+    extracted = df.withColumn(
+        "extracted_urls", regexp_extract_all("text", lit(url_regex))
+    ).withColumn(
+        "dois", regexp_extract_all("text", lit(doi_regex))
+    )

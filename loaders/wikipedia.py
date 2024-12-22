@@ -3,17 +3,15 @@ import os
 from lxml import etree
 import mwxml
 import asyncio
+from pyspark.sql import DataFrame, SparkSession
+from pyspark.sql.functions import element_at, regexp, lit, regexp_extract_all
 
 from .loader_utils import *
 
 wiki_date = f"20241201"
 wiki_multistream_filename = f"enwiki-{wiki_date}-pages-articles-multistream.xml.bz2"
 
-semi_legit = re.compile(
-    "(nih.gov|Category:Nutrition|modernmedicine|PLOS Medicine|veterinaryevidence|Portal bar \| Medicine|World Health Organization)",
-    re.IGNORECASE)
-
-async def download_wikipedia():
+async def download_wikipedia() -> None:
     wikimedia_mirrors = [
         f"https://dumps.wikimedia.org/enwiki/{wiki_date}/",
         f"https://dumps.wikimedia.your.org/enwiki/{wiki_date}/"]
@@ -22,35 +20,22 @@ async def download_wikipedia():
             wikimedia_mirrors))
     await download_file_if_not_existing(wiki_multistream_filename, urls)
 
-def stream_wikipedia():
-    import bz2
+def wikipedia_df(spark) -> DataFrame:
+    pubmed_df = spark \
+        .read \
+        .format("xml") \
+        .options(rowTag="page") \
+        .load(wiki_multistream_filename)
+    return pubmed_df
 
-    with bz2.open(wiki_multistream_filename, "rb") as f:
-        wikipedia_itr = mwxml.Dump.from_file(f)
-        for page in wikipedia_itr:
-            try:
-                top_revision = next(page)
-                text_deleted = top_revision.deleted.text
-                if text_deleted:
-                    continue
-                page_text = top_revision.text
-                if page_text is None:
-                    continue
-                page_title = top_revision.page.title
-                if semi_legit.match(page_text):
-                    yield {
-                        "text": page_text,
-                        "title": page_title
-                    }
-            except Exception as e:
-                print(f"Error: {e} -- skipping")
-                continue
-
-async def load_wikipedia():
-#    await download_wikipedia()
-    article_stream = stream_wikipedia()
-    for article in article_stream:
-        await asyncio.sleep(0) # yield
-        print(article)
-        return
-    return
+async def load_wikipedia(spark) -> DataFrame:
+    await asyncio.sleep(0)
+    df = wikipedia_df(spark)
+    non_redirected = df.filter(dfs[0]["redirect"].isNull())
+    relevant_fields = non_redirected.select(
+        non_redirected["title"],
+        non_redirected["revision"]["text"]["_VALUE"].alias("text")
+    )
+    relevant_records = filter_relevant_records_based_on_text(relevant_fields)
+    annotated = extract_and_annotate(relevant_records)
+    return annotated
