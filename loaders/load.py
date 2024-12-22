@@ -29,3 +29,4 @@ async def magic():
     return await main_bloop
 
 dfs = asyncio.run(magic())
+combined = dfs[0].union(dfs[1:])

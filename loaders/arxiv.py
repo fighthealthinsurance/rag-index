@@ -18,7 +18,7 @@ async def extract_arxiv():
 
 async def load_arxiv(spark: SparkSession) -> DataFrame:
 #    await download_arxiv
-    await extract_arxiv
+    await extract_arxiv()
     await asyncio.sleep(0)
     initial = spark.read.format("json").load("arxiv-metadata-oai-snapshot.json")
     relevant_fields = initial.select(
