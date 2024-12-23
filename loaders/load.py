@@ -1,6 +1,7 @@
 from .pubmed import load_pubmed
 from .arxiv import load_arxiv
 from .wikipedia import load_wikipedia
+from .loader_utils import load_or_create, run_in_thread
 import asyncio
 
 from pyspark.conf import SparkConf
@@ -20,13 +21,17 @@ spark = SparkSession \
   .getOrCreate()
 
 
-async def magic():
-    awaitables = [
-        load_wikipedia(spark),
-        load_arxiv(spark),
-        load_pubmed(spark)]
-    main_bloop = asyncio.gather(*awaitables)
+async def magic(spark: SparkSession):
+    main_bloop = await asyncio.gather(
+        run_in_thread(load_arxiv, spark),
+        run_in_thread(load_wikipedia, spark),
+        run_in_thread(load_pubmed, spark)
+    )
     return await main_bloop
 
-dfs = asyncio.run(magic())
-combined = dfs[0].union(dfs[1:])
+def create_data_inputs(spark: SparkSession) -> DataFrame:
+    dfs = asyncio.run(magic(spark))
+    combined = dfs[0].union(dfs[1:])
+    return combined
+
+combined = load_or_create(spark, "initial_records", create_data_inputs)

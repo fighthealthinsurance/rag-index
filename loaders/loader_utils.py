@@ -4,7 +4,9 @@ import os
 import subprocess
 import asyncio
 from typing import List
-from pyspark.sql import DataFrame
+from pyspark.sql import DataFrame, SparkSession
+from typing import Callable
+import concurrent
 
 from subprocess import CalledProcessError
 
@@ -14,6 +16,17 @@ semi_legit = "(nih.gov|Category:Nutrition|modernmedicine|PLOS Medicine|veterinar
 semi_legit_compiled = re.compile(
     semi_legit,
     re.IGNORECASE)
+
+def load_or_create(
+        spark: SparkSession,
+        input_path: str,
+        create_fun: Callable[[SparkSession], DataFrame]) -> DataFrame:
+    try:
+        df = spark.load(input_path)
+    except:
+        df = create_fun(spark)
+        df.save(input_path)
+    return df
 
 async def check_call(cmd, **kwargs):
     process = await asyncio.create_subprocess_exec(*cmd, **kwargs)
@@ -79,3 +92,7 @@ def extract_and_annotate(df: DataFrame) -> DataFrame:
     ).withColumn(
         "dois", regexp_extract_all("text", lit(doi_regex))
     )
+
+def run_in_thread(func, *args):
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        return executor.submit(func, *args).result()

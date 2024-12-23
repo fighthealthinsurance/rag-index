@@ -21,17 +21,16 @@ async def download_wikipedia() -> None:
     await download_file_if_not_existing(wiki_multistream_filename, urls)
 
 def wikipedia_df(spark) -> DataFrame:
-    pubmed_df = spark \
+    df = spark \
         .read \
         .format("xml") \
         .options(rowTag="page") \
         .load(wiki_multistream_filename)
-    return pubmed_df
+    return df
 
-async def load_wikipedia(spark) -> DataFrame:
-    await asyncio.sleep(0)
+def _load_wikipedia(spark) -> DataFrame:
     df = wikipedia_df(spark)
-    non_redirected = df.filter(dfs[0]["redirect"].isNull())
+    non_redirected = df.filter(df["redirect"].isNull())
     relevant_fields = non_redirected.select(
         non_redirected["title"],
         non_redirected["revision"]["text"]["_VALUE"].alias("text")
@@ -39,3 +38,7 @@ async def load_wikipedia(spark) -> DataFrame:
     relevant_records = filter_relevant_records_based_on_text(relevant_fields)
     annotated = extract_and_annotate(relevant_records)
     return annotated
+
+async def load_wikipedia(spark) -> DataFrame:
+    await asyncio.sleep(0)
+    return load_or_create(spark, "wikipedia", _load_wikipedia)

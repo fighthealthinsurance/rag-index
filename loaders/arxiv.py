@@ -16,10 +16,7 @@ async def extract_arxiv():
     if not os.path.exists("arxiv-metadata-oai-snapshot.json"):
         await check_call(["unzip", "arxiv.zip"])
 
-async def load_arxiv(spark: SparkSession) -> DataFrame:
-#    await download_arxiv
-    await extract_arxiv()
-    await asyncio.sleep(0)
+def _load_arxiv(spark: SparkSession) -> DataFrame:
     initial = spark.read.format("json").load("arxiv-metadata-oai-snapshot.json")
     relevant_fields = initial.select(
         initial["doi"],
@@ -29,3 +26,9 @@ async def load_arxiv(spark: SparkSession) -> DataFrame:
     relevant_records = filter_relevant_records_based_on_text(relevant_fields)
     annotated = extract_and_annotate(relevant_records)
     return annotated
+
+async def load_arxiv(spark: SparkSession) -> DataFrame:
+    #    await download_arxiv
+    #    await extract_arxiv()
+    await asyncio.sleep(0)
+    return load_or_create(spark, "arxiv", _load_arxiv)
