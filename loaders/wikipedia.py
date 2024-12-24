@@ -13,9 +13,13 @@ class WikipediaDataSource(CompressedRagDataSource):
     wiki_date = f"20241201"
     extracted_filename = f"enwiki-{wiki_date}-pages-articles-multistream.xml"
     filename = f"{extracted_filename}.bz2"
-    input_format = "xml"
-    input_options = {"rowTag": "page"}
+    input_format = "com.databricks.spark.xml"
+    input_options = {
+        "rowTag": "page",
+        "rootTag": "mediawiki"
+    }
     name = "wikipedia"
+    decompress_needed = False # bzip2 is splittable.
 
     wikimedia_mirrors = [
         f"https://dumps.wikimedia.org/enwiki/{wiki_date}/",

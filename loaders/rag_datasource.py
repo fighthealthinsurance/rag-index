@@ -13,6 +13,10 @@ class RagDataSource:
     schema: Optional[StructType] = None
     input_options: Dict[str, str] = {}
 
+    async def _download(self, spark: SparkSession) -> None:
+        """Download the data. Spark session provided to upload to cluster if needed."""
+        return
+
     def path(self) -> str:
         raise NotImplementedError("Must implement path")
 
@@ -26,7 +30,8 @@ class RagDataSource:
             read_call = read_call.options(**{k: v})
         path = self.path()
         loaded = read_call.load(path)
-        print(f"Loaded {path} w/schema {loaded.schema}")
+        print(f"Loaded {path} w/schema {loaded.schema} & columns {loaded.columns}")
+        loaded.show()
         return loaded
 
     async def _filter(self, df: DataFrame) -> DataFrame:
@@ -38,6 +43,7 @@ class RagDataSource:
         return df
 
     async def _load(self, spark: SparkSession) -> DataFrame:
+        await self._download(spark)
         df = await self._initial_load(spark)
         selected = await self._select(df)
         filtered = await self._filter(selected)
@@ -58,9 +64,24 @@ class RecursiveDataSource(RagDataSource):
     input_format: str = "json"
     schema: Optional[StructType] = None
     match_condition: str = "*"
+    flatten = True
+
+    async def _download(self, spark: SparkSession):
+        """Download the data."""
+        await asyncio.sleep(0)
+        await download_recursive(self.directory_name, self.flatten, self.urls)
 
     def path(self) -> str:
         return f"{self.directory_name}/{self.match_condition}"
+
+class RecursiveTgzDataSource(RecursiveDataSource):
+    directory_name: str = ""
+    urls: List[str] = []
+    input_format: str = "json"
+    schema: Optional[StructType] = None
+    match_condition: str = "*"
+    flatten = False
+
 
 class CompressedRagDataSource(RagDataSource):
     filename: str = ""
@@ -69,19 +90,23 @@ class CompressedRagDataSource(RagDataSource):
     input_format: str = "csv"
     schema: Optional[StructType] = None
     input_options: Dict[str, str] = {}
+    decompress_needed = True
 
-    async def _download(self):
+    async def _download(self, spark: SparkSession):
         """Download the data."""
         await asyncio.sleep(0)
         return await download_file_if_not_existing(self.filename, self.urls)
 
     async def extract(self):
         await asyncio.sleep(0)
-        if not os.path.exists(self.extracted_filename):
+        if self.decompress_needed and not os.path.exists(self.extracted_filename):
             await check_call(["extract_command", self.filename])
 
     def path(self) -> str:
-        return self.extracted_filename
+        if self.decompress_needed:
+            return self.extracted_filename
+        else:
+            return self.filename
 
     async def _select(self, df: DataFrame) -> DataFrame:
         """Select the relevant fields, most likely should be overridden."""

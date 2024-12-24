@@ -37,6 +37,7 @@ async def load_or_create(
     return df
 
 async def check_call(cmd, **kwargs):
+    print(f"Running: {cmd}")
     process = await asyncio.create_subprocess_exec(*cmd, **kwargs)
     return_code = await process.wait()
     if return_code != 0:
@@ -72,12 +73,16 @@ async def download_file_if_not_existing(target_file: str, urls: list[str]) -> No
     await download_file(target_file, urls)
         
 
-async def _download_recursive(url: str) -> None:
-    await check_call(["wget", "-nc", "-r", "-nd", "--level=1", "-np", "-e", "robots=off", "--directory-prefix=./recursive", url])
+async def _download_recursive(directory: str, flatten: bool, url: str) -> None:
+    command = ["wget", "-nc", "-r", "-np", "-e", "robots=off", f"--directory-prefix=./{directory}"]
+    if flatten:
+        command.append("-nd")
+    command.append(url)
+    await check_call(command)
     return None
 
-async def download_recursive(urls: list[str]) -> None:
-    awaitables = map(_download_recursive, urls)
+async def download_recursive(directory: str, flatten: bool, urls: list[str]) -> None:
+    awaitables = map(lambda url: _download_recursive(directory, flatten, url), urls)
     await asyncio.gather(*awaitables)
 
 def is_maybe_relevant(document_text: str) -> bool:

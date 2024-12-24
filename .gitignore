@@ -165,3 +165,4 @@ recursive
 *.bz2
 arxiv.zip
 arxiv-metadata-oai-snapshot.json
+recursive_medline/

@@ -4,14 +4,11 @@ import asyncio
 
 from .loader_utils import *
 from .rag_datasource import *
+from .pubmed_schema import pubmed_schema
 
-class PubMedDataSource(RecursiveDataSource):
-    flattern = True
+class PubMedDataSource(RecursiveTgzDataSource):
+    flattern = False
+    directory_name = "recursive_pubmed_oa"
     urls = [
-        "https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/",
-        "https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/"
+        "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/"
     ]
-    options = {"rowTag": "PubMedArticle"}
-    input_format = "xml"
-    directory_name = "recursive_pubmed"
-    match_condition = "pubmed24n1314.xml.gz"
