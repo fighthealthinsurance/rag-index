@@ -3,23 +3,7 @@ import os
 from typing import Optional, List, Dict
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import StructType
-
-# Placeholder functions (replace with actual implementations)
-def extract_and_annotate(df: DataFrame) -> DataFrame:
-    """Annotate a DataFrame (placeholder implementation)."""
-    return df
-
-async def load_or_create(spark: SparkSession, name: str, loader):
-    """Load or create DataFrame (placeholder implementation)."""
-    return await loader
-
-async def download_file_if_not_existing(filename: str, urls: List[str]) -> str:
-    """Download a file if it doesn't exist (placeholder implementation)."""
-    return filename
-
-async def check_call(command: List[str]):
-    """Execute a shell command (placeholder implementation)."""
-    pass
+from .loader_utils import *
 
 class RagDataSource:
     name: str = ""

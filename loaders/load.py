@@ -1,6 +1,6 @@
-from .pubmed import load_pubmed
-from .arxiv import load_arxiv
-from .wikipedia import load_wikipedia
+from .pubmed import PubMedDataSource
+from .arxiv import ArxivDataSource
+from .wikipedia import WikipediaDataSource
 from .loader_utils import load_or_create, executor
 import asyncio
 
@@ -23,11 +23,12 @@ spark = SparkSession \
 
 
 async def magic(spark: SparkSession) -> list[DataFrame]:
-    results = [
+    data_sources = [
         ArxivDataSource(),
         PubMedDataSource(),
         WikipediaDataSource()
     ]
+    results = map(lambda x: x.load(spark), data_sources)
     main_bloop: list[DataFrame] = await asyncio.gather(*results)
     return main_bloop
 

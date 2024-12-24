@@ -4,6 +4,7 @@ import json
 from pyspark.sql import DataFrame, SparkSession
 
 from .loader_utils import *
+from .rag_datasource import *
 
 class ArxivDataSource(CompressedRagDataSource):
     filename = "arxiv.zip"
@@ -12,7 +13,7 @@ class ArxivDataSource(CompressedRagDataSource):
     urls = ["https://www.kaggle.com/api/v1/datasets/download/Cornell-University/arxiv"]
     extract_command = "unzip"
 
-    async def _select(initial: DataFrame) -> DataFrame:
+    async def _select(self, initial: DataFrame) -> DataFrame:
         """Select the relevant fields from an ARXIV record."""
         relevant_fields = initial.select(
             initial["doi"],
