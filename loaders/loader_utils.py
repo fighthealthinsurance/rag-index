@@ -5,7 +5,8 @@ import subprocess
 import asyncio
 from typing import List
 from pyspark.sql import DataFrame, SparkSession
-from typing import Callable
+from pyspark.sql.functions import regexp_extract_all, lit, regexp
+from typing import Awaitable, Callable
 import concurrent
 
 from subprocess import CalledProcessError
@@ -17,15 +18,22 @@ semi_legit_compiled = re.compile(
     semi_legit,
     re.IGNORECASE)
 
-def load_or_create(
+executor = concurrent.futures.ThreadPoolExecutor(max_workers=5)
+
+async def load_or_create(
         spark: SparkSession,
         input_path: str,
-        create_fun: Callable[[SparkSession], DataFrame]) -> DataFrame:
+        create_fun: Callable[[SparkSession], Awaitable[DataFrame]]) -> DataFrame:
     try:
-        df = spark.load(input_path)
+        df = spark.read.parquet(input_path)
     except:
-        df = create_fun(spark)
-        df.save(input_path)
+        # Unfortunately not meaningfuly async
+        df = await create_fun(spark)
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(
+            executor,
+            df.write.format("parquet").mode("overwrite").save,
+            input_path)
     return df
 
 async def check_call(cmd, **kwargs):
@@ -73,16 +81,14 @@ async def download_recursive(urls: list[str]) -> None:
     await asyncio.gather(*awaitables)
 
 def is_maybe_relevant(document_text: str) -> bool:
-    if semi_legit.match(document_text):
+    if semi_legit_compiled.match(document_text):
         return True
     else:
         return False
 
 def filter_relevant_records_based_on_text(df: DataFrame) -> DataFrame:
     relevant_records = df.filter(
-        regexp(
-            relevant_fields["text"],
-            lit(semi_legit)))
+        df["text"].rlike(semi_legit))
     return relevant_records
 
 def extract_and_annotate(df: DataFrame) -> DataFrame:
@@ -92,7 +98,4 @@ def extract_and_annotate(df: DataFrame) -> DataFrame:
     ).withColumn(
         "dois", regexp_extract_all("text", lit(doi_regex))
     )
-
-def run_in_thread(func, *args):
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        return executor.submit(func, *args).result()
+    return extracted

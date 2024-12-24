@@ -1,7 +1,7 @@
 from .pubmed import load_pubmed
 from .arxiv import load_arxiv
 from .wikipedia import load_wikipedia
-from .loader_utils import load_or_create, run_in_thread
+from .loader_utils import load_or_create, executor
 import asyncio
 
 from pyspark.conf import SparkConf
@@ -11,27 +11,37 @@ from pyspark.sql.functions import udf, pandas_udf, struct, col, split_part, lit
 from pyspark.sql.types import *
 
 conf = SparkConf() \
-  .set("spark.executor.memory", "40g") \
+  .set("spark.executor.memory", "90g") \
+  .set("spark.executor.cores", "1") \
   .set("spark.jars.packages", "com.databricks:spark-xml_2.12:0.18.0")
 spark = SparkSession \
   .builder \
-  .master("local[5]") \
+  .master("local[15]") \
   .appName("RAGIndex") \
   .config(conf=conf) \
   .getOrCreate()
 
 
-async def magic(spark: SparkSession):
-    main_bloop = await asyncio.gather(
-        run_in_thread(load_arxiv, spark),
-        run_in_thread(load_wikipedia, spark),
-        run_in_thread(load_pubmed, spark)
-    )
-    return await main_bloop
+async def magic(spark: SparkSession) -> list[DataFrame]:
+    results = [
+        ArxivDataSource(),
+        PubMedDataSource(),
+        WikipediaDataSource()
+    ]
+    main_bloop: list[DataFrame] = await asyncio.gather(*results)
+    return main_bloop
 
-def create_data_inputs(spark: SparkSession) -> DataFrame:
-    dfs = asyncio.run(magic(spark))
-    combined = dfs[0].union(dfs[1:])
-    return combined
+async def create_data_inputs(spark: SparkSession) -> DataFrame:
+    dfs = await magic(spark)
+    if len(dfs) > 1:
+        combined = dfs[0].union(*dfs[1:])
+        return combined
+    else:
+        return dfs[0]
 
-combined = load_or_create(spark, "initial_records", create_data_inputs)
+combined = asyncio.run(
+#    load_or_create(
+#        spark,
+#        "initial_records",
+        create_data_inputs(spark))
+    #))

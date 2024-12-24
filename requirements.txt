@@ -1,3 +1,6 @@
 lxml
 mwxml
 pyspark
+pyspark-asyncactions
+lxml-stubs
+
