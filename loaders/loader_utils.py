@@ -11,7 +11,7 @@ import concurrent
 
 from subprocess import CalledProcessError
 
-url_regex = r'(https?://[^\s]+|www\.[^\s]+)'
+url_regex = r'(https?|ftp)://[a-zA-Z0-9.-]+(?:\.[a-zA-Z]{2,})+(/[^\s]*)?'
 doi_regex = r'10\.\d{4,9}/[-._;()/:A-Z0-9]+'
 semi_legit = "(nih.gov|Category:Nutrition|modernmedicine|PLOS Medicine|veterinaryevidence|Portal bar \|Medicine|World Health Organization|cihr-irsc.gc.ca|nihr.ac.uk|nhs.uk)"
 semi_legit_compiled = re.compile(
@@ -99,8 +99,8 @@ def filter_relevant_records_based_on_text(df: DataFrame) -> DataFrame:
 def extract_and_annotate(df: DataFrame) -> DataFrame:
     """Extract and annotate LINKs and DOIs."""
     extracted = df.withColumn(
-        "extracted_urls", regexp_extract_all("text", lit(url_regex))
+        "extracted_urls", regexp_extract_all("text", lit(url_regex), lit(0))
     ).withColumn(
-        "dois", regexp_extract_all("text", lit(doi_regex))
+        "dois", regexp_extract_all("text", lit(doi_regex), lit(0))
     )
     return extracted

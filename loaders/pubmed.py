@@ -4,7 +4,6 @@ import asyncio
 
 from .loader_utils import *
 from .rag_datasource import *
-from .pubmed_schema import pubmed_schema
 
 class PubMedDataSource(RecursiveTgzDataSource):
     flattern = False
