@@ -6,6 +6,7 @@ from .loader_utils import *
 from .rag_datasource import *
 
 class PubMedDataSource(RecursiveTgzDataSource):
+    name = "pubmed"
     flattern = False
     directory_name = "recursive_pubmed_oa"
     urls = [

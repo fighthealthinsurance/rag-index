@@ -12,7 +12,8 @@ from pyspark.sql.functions import udf, pandas_udf, struct, col, split_part, lit
 from pyspark.sql.types import *
 
 conf = SparkConf() \
-  .set("spark.executor.memory", "90g") \
+  .set("spark.executor.memory", "20g") \
+  .set("spark.driver.memory", "40g") \
   .set("spark.executor.cores", "1") \
   .set("spark.jars.packages", "com.databricks:spark-xml_2.12:0.18.0")
 spark = SparkSession \
@@ -26,8 +27,8 @@ spark = SparkSession \
 async def magic(spark: SparkSession) -> list[DataFrame]:
     data_sources = [
         ArxivDataSource(),
-#        PubMedDataSource(),
-#        MedlineDataSource(),
+        PubMedDataSource(),
+        MedlineDataSource(),
         WikipediaDataSource()
     ]
     results = map(lambda x: x.load(spark), data_sources)

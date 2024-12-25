@@ -7,7 +7,7 @@ from .loader_utils import *
 
 class RagDataSource:
     name: str = ""
-    target_partitions: int = 1000
+    target_partitions: int = 100
     loader_options: Dict[str, str] = {"fake": "option"}
     input_format: str = "parquet"
     schema: Optional[StructType] = None

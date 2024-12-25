@@ -8,6 +8,7 @@ from .loader_utils import *
 from .rag_datasource import *
 
 class ArxivDataSource(CompressedRagDataSource):
+    target_partitions: int = 10
     name = "arxiv"
     filename = "arxiv.zip"
     extracted_filename = "arxiv-metadata-oai-snapshot.json"
@@ -22,6 +23,10 @@ class ArxivDataSource(CompressedRagDataSource):
         relevant_fields = initial.select(
             initial["doi"],
             initial["title"],
+            initial["authors"],
+            initial["authors_parsed"],
+            initial["categories"],
+            initial["update_date"],
             initial["abstract"].alias("text"),
             initial["id"].alias("arxiv_id"))
         return relevant_fields

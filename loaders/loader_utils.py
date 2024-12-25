@@ -6,8 +6,9 @@ import asyncio
 from typing import List
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import regexp_extract_all, lit, regexp
-from typing import Awaitable, Callable
+from typing import Awaitable, Callable, Generator
 import concurrent
+import pathlib
 
 from subprocess import CalledProcessError
 
@@ -24,6 +25,8 @@ async def load_or_create(
         spark: SparkSession,
         input_path: str,
         create_fun: Callable[[SparkSession], Awaitable[DataFrame]]) -> DataFrame:
+    if input_path is None or len(input_path) == 0:
+        raise Exception("Invalid input_path for load_or_create")
     try:
         df = spark.read.parquet(input_path)
     except:
@@ -81,7 +84,31 @@ async def _download_recursive(directory: str, flatten: bool, url: str) -> None:
     await check_call(command)
     return None
 
+async def _check_or_remove_file(path: pathlib.Path) -> None:
+    vaild = True
+    target_file = path.as_posix()
+    if path.suffix == ".gz" or path.suffix == ".tgz":
+        valid = await check_call(["gunzip", "-t", target_file])        
+    elif path.suffix == ".bz2" or path.suffix == ".tbz2":
+        valid = await check_call(["bzip2", "-t", target_file])
+    elif path.suffix == ".zip":
+        valid = await check_call(["unzip", "-t", target_file])
+    if not valid:
+        os.remove(target_file)
+    return
+
+
+def _check_directory(directory: str) -> Generator[Awaitable]:
+    for path in pathlib.Path(directory).rglob("*"):
+        if path.is_file():
+            # Remove invalid files
+            yield _check_or_remove_file(path)
+
+async def check_directory(directory: str) -> None:
+    await asyncio.gather(_check_directory(directory))
+
 async def download_recursive(directory: str, flatten: bool, urls: list[str]) -> None:
+    await check_directory(directory)
     awaitables = map(lambda url: _download_recursive(directory, flatten, url), urls)
     await asyncio.gather(*awaitables)
 
