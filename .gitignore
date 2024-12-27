@@ -166,3 +166,5 @@ recursive
 arxiv.zip
 arxiv-metadata-oai-snapshot.json
 recursive_medline/
+Downloads/
+.settings.sh

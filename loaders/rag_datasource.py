@@ -5,6 +5,7 @@ from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import StructType
 from .loader_utils import *
 
+
 class RagDataSource:
     name: str = ""
     target_partitions: int = 100
@@ -20,6 +21,9 @@ class RagDataSource:
     def path(self) -> str:
         raise NotImplementedError("Must implement path")
 
+    async def _extract(self):
+        return
+
     async def _initial_load(self, spark: SparkSession) -> DataFrame:
         """Async load function."""
         await asyncio.sleep(0)
@@ -29,7 +33,7 @@ class RagDataSource:
         for k, v in self.input_options.items():
             read_call = read_call.options(**{k: v})
         path = self.path()
-        loaded = read_call.load(path)
+        loaded = read_call.load(local_or_minio_path(path))
         print(f"Loaded {path} w/schema {loaded.schema} & columns {loaded.columns}")
         loaded.show()
         return loaded
@@ -44,6 +48,7 @@ class RagDataSource:
 
     async def _load(self, spark: SparkSession) -> DataFrame:
         await self._download(spark)
+        await self._extract()
         df = await self._initial_load(spark)
         filtered = await self._filter(df)
         selected = await self._select(filtered)
@@ -57,6 +62,7 @@ class RagDataSource:
     async def load(self, spark: SparkSession) -> DataFrame:
         await asyncio.sleep(0)
         return await load_or_create(spark, self.name, self._load)
+
 
 class RecursiveDataSource(RagDataSource):
     directory_name: str = ""
@@ -72,7 +78,8 @@ class RecursiveDataSource(RagDataSource):
         await download_recursive(self.directory_name, self.flatten, self.urls)
 
     def path(self) -> str:
-        return f"{self.directory_name}/{self.match_condition}"
+        return f"Downloads/{self.directory_name}/{self.match_condition}"
+
 
 class RecursiveTgzDataSource(RecursiveDataSource):
     directory_name: str = ""
@@ -97,16 +104,16 @@ class CompressedRagDataSource(RagDataSource):
         await asyncio.sleep(0)
         return await download_file_if_not_existing(self.filename, self.urls)
 
-    async def extract(self):
+    async def _extract(self):
         await asyncio.sleep(0)
         if self.decompress_needed and not os.path.exists(self.extracted_filename):
-            await check_call(["extract_command", self.filename])
+            await check_call([extract_command, self.filename])
 
     def path(self) -> str:
         if self.decompress_needed:
-            return self.extracted_filename
+            return f"Downloads/{self.extracted_filename}"
         else:
-            return self.filename
+            return f"Downloads/{self.filename}"
 
     async def _select(self, df: DataFrame) -> DataFrame:
         """Select the relevant fields, most likely should be overridden."""
