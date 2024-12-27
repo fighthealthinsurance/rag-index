@@ -108,7 +108,7 @@ class CompressedRagDataSource(RagDataSource):
     async def _extract(self):
         await asyncio.sleep(0)
         if self.decompress_needed and not os.path.exists(self.extracted_filename):
-            await check_call([extract_command, self.filename])
+            await check_call([self.extract_command, self.filename])
 
     def path(self) -> str:
         if self.decompress_needed:
