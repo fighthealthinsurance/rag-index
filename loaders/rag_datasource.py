@@ -98,6 +98,7 @@ class CompressedRagDataSource(RagDataSource):
     schema: Optional[StructType] = None
     input_options: Dict[str, str] = {}
     decompress_needed = True
+    extract_command: str
 
     async def _download(self, spark: SparkSession):
         """Download the data."""
