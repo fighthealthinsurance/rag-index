@@ -45,8 +45,8 @@ class RagDataSource:
     async def _load(self, spark: SparkSession) -> DataFrame:
         await self._download(spark)
         df = await self._initial_load(spark)
-        selected = await self._select(df)
-        filtered = await self._filter(selected)
+        filtered = await self._filter(df)
+        selected = await self._select(filtered)
         return await self._annotate(filtered)
 
     async def _annotate(self, df: DataFrame) -> DataFrame:

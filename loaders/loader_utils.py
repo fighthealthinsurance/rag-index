@@ -61,22 +61,11 @@ async def download_file(target_file: str, urls: list[str]) -> None:
 
 async def download_file_if_not_existing(target_file: str, urls: list[str]) -> None:
     """Download file if it does not exist OR does not pass checks."""
-    if os.path.exists(target_file):
-        if target_file.endswith(".zip") and which("unzip") is not None:
-            try:
-                await check_call(["unzip", "-t", target_file])
-                return
-            except Exception as e:
-                print(f"Error with file integrity check {target_file}")
-                await check_call(["rm", target_file])
-        elif target_file.endswith(".bz2") and which("bzip2") is not None:
-            try:
-                await check_call(["bzip2", "-t", target_file])
-                return
-            except Exception as e:
-                print(f"Error with file integrity check {target_file}")
-                await check_call(["rm", target_file])
-    await download_file(target_file, urls)
+    # Remove invalid file
+    if os.path.exists(target_file) and os.getenv("DEV") is None:
+        await _check_or_remove_file(target_file)
+    if not os.path.exists(target_file):
+        await download_file(target_file, urls)
 
 
 async def _download_recursive(directory: str, flatten: bool, url: str) -> None:
@@ -87,9 +76,9 @@ async def _download_recursive(directory: str, flatten: bool, url: str) -> None:
     await check_call(command, max_retries=5)
     return None
 
-async def _check_or_remove_file(path: pathlib.Path) -> None:
-    target_file = path.as_posix()
+async def _check_or_remove_file(target_file: str) -> None:
     try:
+        path = pathlib.Path(target_file)
         if which("gunzip") is not None and (path.suffix == ".gz" or path.suffix == ".tgz"):
             await check_call(["gunzip", "-t", target_file])
         elif which("bzip2") is not None and (path.suffix == ".bz2" or path.suffix == ".tbz2"):
@@ -105,9 +94,12 @@ async def _check_directory(directory: str) -> AsyncGenerator[None, None]:
     for path in pathlib.Path(directory).rglob("*"):
         if path.is_file():
             # Remove invalid files
-            yield _check_or_remove_file(path)
+            target_file = path.as_posix()
+            yield _check_or_remove_file(target_file)
 
 async def check_directory(directory: str) -> None:
+    if os.getenv("DEV") is not None:
+        return
     await asyncio.gather(*[task async for task in _check_directory(directory)])
 
 async def download_recursive(directory: str, flatten: bool, urls: list[str]) -> None:

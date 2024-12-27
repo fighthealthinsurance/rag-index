@@ -27,7 +27,7 @@ spark = SparkSession \
 async def magic(spark: SparkSession) -> list[DataFrame]:
     data_sources = [
         ArxivDataSource(),
-        PubMedDataSource(),
+#        PubMedDataSource(),
         MedlineDataSource(),
         WikipediaDataSource()
     ]
