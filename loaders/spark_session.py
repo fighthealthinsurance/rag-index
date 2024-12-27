@@ -11,7 +11,7 @@ conf = (
     .set("spark.executor.cores", "1")
     .set(
         "spark.jars.packages",
-        "com.databricks:spark-xml_2.12:0.18.0,org.apache.hadoop:hadoop-aws:3.2.0",
+        "com.databricks:spark-xml_2.12:0.18.0,org.apache.hadoop:hadoop-aws:3.4.1",
     )
 )
 

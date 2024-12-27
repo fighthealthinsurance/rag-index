@@ -50,8 +50,8 @@ class RagDataSource:
         await self._download(spark)
         await self._extract()
         df = await self._initial_load(spark)
-        filtered = await self._filter(df)
-        selected = await self._select(filtered)
+        selected = await self._select(df)
+        filtered = await self._filter(selected)
         return await self._annotate(filtered)
 
     async def _annotate(self, df: DataFrame) -> DataFrame:
@@ -97,18 +97,12 @@ class CompressedRagDataSource(RagDataSource):
     input_format: str = "csv"
     schema: Optional[StructType] = None
     input_options: Dict[str, str] = {}
-    decompress_needed = True
-    extract_command: str
+    decompress_needed = False
 
     async def _download(self, spark: SparkSession):
         """Download the data."""
         await asyncio.sleep(0)
         return await download_file_if_not_existing(self.filename, self.urls)
-
-    async def _extract(self):
-        await asyncio.sleep(0)
-        if self.decompress_needed and not os.path.exists(self.extracted_filename):
-            await check_call([self.extract_command, self.filename])
 
     def path(self) -> str:
         if self.decompress_needed:

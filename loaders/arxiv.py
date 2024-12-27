@@ -15,7 +15,7 @@ class ArxivDataSource(CompressedRagDataSource):
     extracted_filename = "arxiv-metadata-oai-snapshot.json"
     input_format = "json"
     urls = ["https://www.kaggle.com/api/v1/datasets/download/Cornell-University/arxiv"]
-    extract_command = "unzip"
+    decompress_needed = True
     schema = StructType(
         [
             StructField("abstract", StringType(), True),
@@ -48,6 +48,11 @@ class ArxivDataSource(CompressedRagDataSource):
             ),
         ]
     )
+
+    async def _extract(self):
+        if not os.path.exists(f"Downloads/{self.extracted_filename}"):
+            await check_call([
+                "unzip", f"Downloads/{self.filename}", "-d", "Downloads"])
 
     async def _select(self, initial: DataFrame) -> DataFrame:
         """Select the relevant fields from an ARXIV record."""
