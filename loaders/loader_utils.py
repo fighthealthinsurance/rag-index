@@ -184,6 +184,7 @@ async def _delete_object(client, Bucket, Key):
             
 async def _upload_file(file_path):
     # Check if we already have the file or upload it.
+    # Perf is shit but we run this infrequently and I'm lazy.
     async with create_s3_client() as client:
         try:
             print(f"Checking {file_path}")
