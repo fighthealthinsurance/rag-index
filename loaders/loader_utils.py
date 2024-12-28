@@ -3,7 +3,7 @@ import io
 import tarfile
 import aioboto3
 import re
-from shutil import which
+from shutil import which, disk_usage
 import os
 import subprocess
 import asyncio
@@ -13,6 +13,7 @@ from pyspark.sql.functions import regexp_extract_all, lit, regexp
 from typing import Awaitable, AsyncGenerator, Callable, Generator
 import concurrent
 import pathlib
+import tempfile
 
 from subprocess import CalledProcessError
 
@@ -143,38 +144,6 @@ async def download_file_if_not_existing(target_file: str, urls: list[str]) -> No
             await client.upload_file(target_file, s3_bucket, target_file)
             print(f"Done uploading {target_file}")
 
-async def _compress_and_upload(client, s3_bucket, file_path, extracted_file, remote_path_compressed):
-    """
-    Compress and upload the file to S3 asynchronously.
-    """
-    try:
-        # Make sure file is not laready there.
-        await client.head_object(Bucket=s3_bucket, Key=str(remote_path_compressed))
-    except:
-        try:
-            # Compress the file
-            compressed_file = _sync_compress_file(file_obj)
-            print(f"Uploading extracted file: {remote_path_compressed} from {file_path}")
-        
-            # Upload to S3 asynchronously
-            await client.upload_fileobj(
-                compressed_file,
-                s3_bucket,
-                remote_path_compressed
-            )
-            print(f"Uploaded compressed file: {remote_path_compressed}")
-        except Exception as e:
-            print(f"Error compressing and uploading {file_path}: {e}")
-        finally:
-            compressed_file.close()
-
-def _sync_compress_file(file_obj):
-    compressed_stream = BytesIO()
-    with gzip.GzipFile(fileobj=compressed_stream, mode="wb") as gz:
-        gz.write(file_obj.read())
-    compressed_stream.seek(0)
-    return compressed_stream
-
 async def _delete_object(client, Bucket, Key):
     try:
         await client.delete_object(Bucket=Bucket, Key=Key)
@@ -182,38 +151,50 @@ async def _delete_object(client, Bucket, Key):
     except Exception as e:
         print(f"Failed to delete {key}: {e}")
             
-async def _upload_file(file_path):
+async def _upload_file(file_path: pathlib.Path):
     # Check if we already have the file or upload it.
     # Perf is shit but we run this infrequently and I'm lazy.
     async with create_s3_client() as client:
+        tasks = []
         try:
             print(f"Checking {file_path}")
             await client.head_object(Bucket=s3_bucket, Key=str(file_path))
         except Exception as e:
             print(f"Uploading {file_path}")
-            await client.upload_file(file_path, s3_bucket, str(file_path))
-            print(f"Uploaded {file_path}")
+            tasks.append(client.upload_file(file_path, s3_bucket, str(file_path)))
         # Is it a tarfile? If so upload the contents (Spark doesn't love loading from tars)
         if str(file_path).endswith(".tgz") or str(file_path).endswith(".tar.gz"):
-            with tarfile.open(file_path, "r:gz") as tar:
-                tasks = []
-                for member in tar.getmembers():
-                    if member.isfile():
-                        # Get the relative path within the tar archive
-                        relative_path = member.name
-                        remote_path = f"{file_path}-extracted/{relative_path}"
-                        remote_path_compressed = f"{file_path}-extracted/{relative_path}.gz"
-                        # Non blocking delete the non-compressed version TODO:remove
-                        asyncio.create_task(_delete_object(client, Bucket=s3_bucket, Key=str(remote_path)))
-                        extracted_file = tar.extractfile(member)
-                        print(f"Uploading extracted file: {member.name} from {file_path}")
-                        tasks.append(_compress_and_upload(
-                            client,
-                            s3_bucket,
-                            file_path,
-                            extracted_file,
-                            remote_path_compressed))
+            with tempfile.TemporaryDirectory(prefix="ex" + file_path.name[0:5]) as extract_dir:
+                await asyncio.sleep(0)
+                # Check that we have a lot of free space
+                usage = disk_usage("/tmp")
+                delay = 10
+                while usage.free / usage.total < 0.35:
+                    usage = disk_usage("/tmp")
+                    delay = delay + (usage.total / usage.free) * 10
+                    print(f"Running low on space, waiting {delay} + {tasks}...")
+                    usage = disk_usage("/tmp")
+                    await asyncio.gather(*tasks)
+                    tasks = []
+                    await asyncio.sleep(delay)
+                # Extract archive better than blocking the Python thread
+                await check_call(["tar", "-xf", str(file_path), "-C", extract_dir])
+                for extracted_file_path in pathlib.Path(extract_dir).rglob('*!(gz)'):
+                    relative_path = str(extracted_file_path).lstrip(extract_dir + "/")
+                    remote_path = f"{file_path}-extracted/{relative_path}"
+                    remote_path_compressed = f"{file_path}-extracted/{relative_path}.gz"
+                    # Again avoid using the Python gzip lib for perf
+                    await check_call(["gzip", str(extracted_file_path)])
+                    # Non blocking fire and forget delete decompressed remote object
+                    asyncio.create_task(_delete_object(client, Bucket=s3_bucket, Key=str(remote_path)))
+                    tasks.append(_upload_file(
+                        Path(f"{str(extracted_file_path)}.gz")
+                    ))
+                # await here before we delete the temp dir
                 await asyncio.gather(*tasks)
+                tasks = []
+        # Incase no tgz await
+        await asyncio.gather(*tasks)
 
 async def _upload_directory(directory: str):
     if s3_session is not None:
