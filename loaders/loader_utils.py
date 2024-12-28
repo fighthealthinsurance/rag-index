@@ -212,7 +212,7 @@ async def _upload_file(file_path):
                             file_path,
                             extracted_file,
                             remote_path_compressed))
-                await asyncio.gather(tasks)
+                await asyncio.gather(*tasks)
 
 async def _upload_directory(directory: str):
     if s3_session is not None:
