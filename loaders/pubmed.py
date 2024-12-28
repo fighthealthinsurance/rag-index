@@ -32,20 +32,11 @@ class PubMedDataSource(RecursiveTgzDataSource):
         return df.filter(df["Retracted"] != "yes")
 
     async def _final_select(self, df: DataFrame) -> DataFrame:
-        # Load the files dynamically -- maybe move to Java idk.
-        def load_file(artifact_path: str, filename: str):
-            import tarfile
-            # Use fsspec so we can have local or remote (note: configuration tbd)
-            import fsspec
-
-            with fsspec.open(artifact_path, mode="rb") as artifact_loaded:
-                with tarfile.open(fileobj=artifact_loaded, mode="r:gz") as tar:
-                    f = tar.extract(filename)
-                    return f.read()
-
-        load_file_udf = udf(load_file, StringType())
-        r = df \
-            .withColumn("loaded_content",
-                        load_file_udf("artifact_file_path", "file_name"))
-        r.show(truncate=False)
-        return r
+        spark = SparkSession.builder.getOrCreate()
+        text_files = spark.read.format("text") \
+            .option("wholeText", "True") \
+            .load(
+            f"s3a://{minio_bucket}/Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/*/*/*/*/*.txt") \
+            .withColumn("input_file_name", input_file_name())
+        text_files.show(truncate=False)
+        return df
