@@ -12,7 +12,7 @@ from pyspark.sql import DataFrame, SparkSession
 async def magic(spark: SparkSession) -> list[DataFrame]:
     data_sources = [
         ArxivDataSource(),
-        #        PubMedDataSource(),
+        PubMedDataSource(),
         MedlineDataSource(),
         WikipediaDataSource(),
     ]
@@ -31,9 +31,8 @@ async def create_data_inputs(spark: SparkSession) -> DataFrame:
 
 
 combined = asyncio.run(
-    #    load_or_create(
-    #        spark,
-    #        "initial_records",
-    create_data_inputs(spark)
-)
-# ))
+    load_or_create(
+        spark,
+        "initial_records",
+        create_data_inputs
+    ))

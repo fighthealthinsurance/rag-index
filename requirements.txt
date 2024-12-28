@@ -5,3 +5,4 @@ pyspark-asyncactions
 lxml-stubs
 aioboto3
 types-aioboto3
+fsspec

@@ -27,13 +27,20 @@ if minio_host:
     s3_session = aioboto3.Session(region_name=os.getenv("MINIO_REGION"))
 
 
-def local_or_minio_path(local_path: str) -> str:
+def dl_local_or_minio_path(local_path: str) -> str:
     # Use local path if we are using a non-local master AND have minio setup.
+    # This avoids doing double transfers of downloaded files if we don't need to
     if os.getenv("SPARK_MASTER") is not None and minio_host is not None and minio_bucket is not None:
-        return f"s3a://{minio_bucket}/local_path"
+        return f"s3a://{minio_bucket}/{local_path}"
     else:
         return local_path
 
+def local_or_minio_path(local_path: str) -> str:
+    # Use local path if we are using have minio setup. Always transfers to minio.
+    if minio_host is not None and minio_bucket is not None:
+        return f"s3a://{minio_bucket}/{local_path}"
+    else:
+        return local_path
 
 def create_s3_client():
     if (
@@ -64,17 +71,14 @@ async def load_or_create(
 ) -> DataFrame:
     if input_path is None or len(input_path) == 0:
         raise Exception("Invalid input_path for load_or_create")
-    bucket = os.getenv("MINIO_BUCKET")
-    if bucket is not None:
-        input_path = f"s3a://{bucket}/{input_path}"
+    path = local_or_minio_path(input_path)
     try:
-        df = spark.read.parquet(input_path)
+        df = spark.read.parquet(path)
     except:
         # Unfortunately not meaningfuly async
         df = await create_fun(spark)
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(
-            executor, df.write.format("parquet").mode("overwrite").save, input_path
+        await df.write.format("parquet").mode("overwrite").save(
+            path
         )
     return df
 
@@ -110,6 +114,7 @@ async def download_file(target_file: str, urls: list[str]) -> None:
 
 async def download_file_if_not_existing(target_file: str, urls: list[str]) -> None:
     """Download file if it does not exist OR does not pass checks."""
+    await asyncio.sleep(0)
     target_file = f"Downloads/{target_file}"
     # Check MINIO first
     if s3_session is not None:
@@ -131,6 +136,7 @@ async def download_file_if_not_existing(target_file: str, urls: list[str]) -> No
     if s3_session is not None:
         async with create_s3_client() as client:
             print(f"Uploading {target_file}")
+            await asyncio.sleep(0)
             await client.upload_file(target_file, s3_bucket, target_file)
             print(f"Done uploading {target_file}")
 
@@ -153,14 +159,15 @@ async def _download_recursive(directory: str, flatten: bool, url: str) -> None:
     # Upload to s3 if configured
     if s3_session is not None:
         async with create_s3_client() as client:
-            for root, dirs, files in os.walk(directory):
-                for file in files:
-                    file_path = os.path.join(directory, file)
+            for file_path in pathlib.Path(directory).rglob('*'):
+                if file_path.is_file():
                     # Check if we already have the file or upload it.
                     try:
-                        await client.head_object(Bucket=s3_bucket, Key=file_path)
+                        await client.head_object(Bucket=s3_bucket, Key=str(file_path))
                     except Exception as e:
-                        await client.upload_file(file_path, s3_bucket, file_path)
+                        print(f"Uploading {file_path}")
+                        await client.upload_file(file_path, s3_bucket, str(file_path))
+                        print(f"Uploaded {file_path}")
     return None
 
 

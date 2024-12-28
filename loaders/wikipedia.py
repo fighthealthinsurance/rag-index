@@ -37,6 +37,11 @@ class WikipediaDataSource(CompressedRagDataSource):
     async def _select(self, df: DataFrame) -> DataFrame:
         await asyncio.sleep(0)
         relevant_fields = df.select(
-            df["title"], df["revision"]["text"]["_VALUE"].alias("text")
+            df["title"], df["revision"]["text"]["_VALUE"].alias("text"),
+            df["redirect"]
         )
         return relevant_fields
+
+    async def _final_select(self, df: DataFrame) -> DataFrame:
+        await asyncio.sleep(0)
+        return df.select(df["title"], df["text"])

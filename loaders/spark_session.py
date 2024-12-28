@@ -6,12 +6,15 @@ from .minio_settings import *
 
 conf = (
     SparkConf()
-    .set("spark.executor.memory", "20g")
+    .set("spark.executor.memory", "40g")
     .set("spark.driver.memory", "40g")
     .set("spark.executor.cores", "1")
+    .setMaster(os.getenv("SPARK_MASTER", "local[15]"))
+    .setAppName("RAGIndex")
     .set(
         "spark.jars.packages",
-        "com.databricks:spark-xml_2.12:0.18.0,org.apache.hadoop:hadoop-aws:3.3.0"
+        # Note: version of hadoop-aws _must_ match the Spark hadoop compiled version
+        "com.databricks:spark-xml_2.12:0.18.0,org.apache.hadoop:hadoop-aws:3.3.1"
     )
 )
 
@@ -30,10 +33,7 @@ if minio_username is not None and minio_password is not None and minio_host is n
     )
 
 spark = (
-    SparkSession.builder.master(
-        os.getenv("MASTER", os.getenv("SPARK_MASTER", "local[15]"))
-    )
-    .appName("RAGIndex")
+    SparkSession.builder
     .config(conf=conf)
     .getOrCreate()
 )

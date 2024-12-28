@@ -33,7 +33,7 @@ class RagDataSource:
         for k, v in self.input_options.items():
             read_call = read_call.options(**{k: v})
         path = self.path()
-        loaded = read_call.load(local_or_minio_path(path))
+        loaded = read_call.load(dl_local_or_minio_path(path))
         print(f"Loaded {path} w/schema {loaded.schema} & columns {loaded.columns}")
         loaded.show()
         return loaded
@@ -43,7 +43,11 @@ class RagDataSource:
         return df
 
     async def _select(self, df: DataFrame) -> DataFrame:
-        """Keep all of the columns."""
+        """Default select: keep all of the columns. applied pre-filter"""
+        return df
+
+    async def _final_select(self, df: DataFrame) -> DataFrame:
+        """Final select (applied post filter)"""
         return df
 
     async def _load(self, spark: SparkSession) -> DataFrame:
@@ -51,8 +55,9 @@ class RagDataSource:
         await self._extract()
         df = await self._initial_load(spark)
         selected = await self._select(df)
-        filtered = await self._filter(selected)
-        return await self._annotate(filtered)
+        filtered = (await self._filter(selected)).repartition(self.target_partitions)
+        final_selected = await self._final_select(filtered)
+        return await self._annotate(final_selected)
 
     async def _annotate(self, df: DataFrame) -> DataFrame:
         await asyncio.sleep(0)

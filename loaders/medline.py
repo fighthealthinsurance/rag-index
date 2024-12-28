@@ -25,6 +25,7 @@ class MedlineDataSource(RecursiveDataSource):
     name = "medline"
 
     async def _select(self, df: DataFrame) -> DataFrame:
+        await asyncio.sleep(0)
         selected = df.select(
             concat_ws(
                 " ",
