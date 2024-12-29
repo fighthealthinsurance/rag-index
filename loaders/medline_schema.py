@@ -1,5 +1,11 @@
-from pyspark.sql.types import (ArrayType, DoubleType, LongType, StringType,
-                               StructField, StructType)
+from pyspark.sql.types import (
+    ArrayType,
+    DoubleType,
+    LongType,
+    StringType,
+    StructField,
+    StructType,
+)
 
 medline_schema = StructType(
     [
