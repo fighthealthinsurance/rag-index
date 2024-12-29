@@ -179,7 +179,7 @@ async def _upload_file(file_path: pathlib.Path, delete=False):
                 delay = 10
                 while usage.free / usage.total < 0.35:
                     usage = disk_usage("/tmp")
-                    delay = 10 + (usage.total / usage.free) * 10
+                    delay = 10 + int((usage.total / usage.free) * 10)
                     print(f"Running low on space {usage}, waiting {delay} + {tasks}...")
                     usage = disk_usage("/tmp")
                     await asyncio.gather(*tasks)

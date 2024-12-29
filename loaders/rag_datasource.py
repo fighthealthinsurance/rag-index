@@ -3,6 +3,7 @@ import os
 from typing import Optional, List, Dict
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import StructType
+from pyspark.sql.functions import lit
 from .loader_utils import *
 
 
@@ -62,7 +63,7 @@ class RagDataSource:
     async def _annotate(self, df: DataFrame) -> DataFrame:
         await asyncio.sleep(0)
         annotated = extract_and_annotate(df).repartition(self.target_partitions)
-        return annotated.withColumn(lit(name).alias("data_source"))
+        return annotated.withColumn("data_source", lit(self.name))
 
     async def load(self, spark: SparkSession) -> DataFrame:
         await asyncio.sleep(0)
