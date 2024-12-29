@@ -30,9 +30,4 @@ async def create_data_inputs(spark: SparkSession) -> DataFrame:
         return dfs[0]
 
 
-combined = asyncio.run(
-    load_or_create(
-        spark,
-        "initial_records",
-        create_data_inputs
-    ))
+combined = asyncio.run(load_or_create(spark, "initial_records", create_data_inputs))

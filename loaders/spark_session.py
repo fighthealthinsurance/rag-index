@@ -14,7 +14,7 @@ conf = (
     .set(
         "spark.jars.packages",
         # Note: version of hadoop-aws _must_ match the Spark hadoop compiled version
-        "com.databricks:spark-xml_2.12:0.18.0,org.apache.hadoop:hadoop-aws:3.3.1"
+        "com.databricks:spark-xml_2.12:0.18.0,org.apache.hadoop:hadoop-aws:3.3.1",
     )
 )
 
@@ -32,8 +32,4 @@ if minio_username is not None and minio_password is not None and minio_host is n
         .set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
     )
 
-spark = (
-    SparkSession.builder
-    .config(conf=conf)
-    .getOrCreate()
-)
+spark = SparkSession.builder.config(conf=conf).getOrCreate()

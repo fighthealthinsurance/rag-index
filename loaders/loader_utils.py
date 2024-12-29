@@ -34,10 +34,15 @@ if minio_host:
 def dl_local_or_minio_path(local_path: str) -> str:
     # Use local path if we are using a non-local master AND have minio setup.
     # This avoids doing double transfers of downloaded files if we don't need to
-    if os.getenv("SPARK_MASTER") is not None and minio_host is not None and minio_bucket is not None:
+    if (
+        os.getenv("SPARK_MASTER") is not None
+        and minio_host is not None
+        and minio_bucket is not None
+    ):
         return f"s3a://{minio_bucket}/{local_path}"
     else:
         return local_path
+
 
 def local_or_minio_path(local_path: str) -> str:
     # Use local path if we are using have minio setup. Always transfers to minio.
@@ -45,6 +50,7 @@ def local_or_minio_path(local_path: str) -> str:
         return f"s3a://{minio_bucket}/{local_path}"
     else:
         return local_path
+
 
 def create_s3_client():
     if (
@@ -81,9 +87,7 @@ async def load_or_create(
     except:
         # Unfortunately not meaningfuly async
         df = await create_fun(spark)
-        df.write.format("parquet").mode("overwrite").save(
-            path
-        )
+        df.write.format("parquet").mode("overwrite").save(path)
     return df
 
 
@@ -144,13 +148,15 @@ async def download_file_if_not_existing(target_file: str, urls: list[str]) -> No
             await client.upload_file(target_file, s3_bucket, target_file)
             print(f"Done uploading {target_file}")
 
+
 async def _delete_object(client, Bucket, Key):
     try:
         await client.delete_object(Bucket=Bucket, Key=Key)
-        print(f"Successfully deleted {key}")
+        print(f"Successfully deleted {Key}")
     except Exception as e:
-        print(f"Failed to delete {key}: {e}")
-            
+        print(f"Failed to delete {Key}: {e}")
+
+
 async def _upload_file(file_path: pathlib.Path, delete=False):
     # Check if we already have the file or upload it.
     # Perf is shit but we run this infrequently and I'm lazy.
@@ -164,7 +170,9 @@ async def _upload_file(file_path: pathlib.Path, delete=False):
             tasks.append(client.upload_file(file_path, s3_bucket, str(file_path)))
         # Is it a tarfile? If so upload the contents (Spark doesn't love loading from tars)
         if str(file_path).endswith(".tgz") or str(file_path).endswith(".tar.gz"):
-            with tempfile.TemporaryDirectory(prefix="ex" + file_path.name[0:5]) as extract_dir:
+            with tempfile.TemporaryDirectory(
+                prefix="ex" + file_path.name[0:5]
+            ) as extract_dir:
                 await asyncio.sleep(0)
                 # Check that we have a lot of free space
                 usage = disk_usage("/tmp")
@@ -179,20 +187,32 @@ async def _upload_file(file_path: pathlib.Path, delete=False):
                     await asyncio.sleep(delay)
                 # Extract archive better than blocking the Python thread
                 await check_call(["tar", "-xf", str(file_path), "-C", extract_dir])
-                for extracted_file_path in pathlib.Path(extract_dir).rglob('*'):
+                for extracted_file_path in pathlib.Path(extract_dir).rglob("*"):
                     # Only upload files and not internally compressed files
-                    if extracted_file_path.is_file() and not str(extracted_file_path).endswith(".gz"):
-                        relative_path = str(extracted_file_path).lstrip(extract_dir + "/")
+                    if extracted_file_path.is_file() and not str(
+                        extracted_file_path
+                    ).endswith(".gz"):
+                        relative_path = str(extracted_file_path).lstrip(
+                            extract_dir + "/"
+                        )
                         remote_path = f"{file_path}-extracted/{relative_path}"
-                        remote_path_compressed = f"{file_path}-extracted/{relative_path}.gz"
+                        remote_path_compressed = (
+                            f"{file_path}-extracted/{relative_path}.gz"
+                        )
                         # Again avoid using the Python gzip lib for perf
                         await check_call(["gzip", str(extracted_file_path)])
                         # Non blocking fire and forget delete decompressed remote object
-                        asyncio.create_task(_delete_object(client, Bucket=s3_bucket, Key=str(remote_path)))
-                        tasks.append(_upload_file(
-                            Path(f"{str(extracted_file_path)}.gz"),
-                            delete=True
-                        ))
+                        asyncio.create_task(
+                            _delete_object(
+                                client, Bucket=s3_bucket, Key=str(remote_path)
+                            )
+                        )
+                        tasks.append(
+                            _upload_file(
+                                pathlib.Path(f"{str(extracted_file_path)}.gz"),
+                                delete=True,
+                            )
+                        )
                 # await here before we delete the temp dir
                 await asyncio.gather(*tasks)
                 tasks = []
@@ -201,14 +221,15 @@ async def _upload_file(file_path: pathlib.Path, delete=False):
         if delete:
             file_path.unlink()
 
+
 async def _upload_directory(directory: str):
     if s3_session is not None:
         tasks = []
-        for file_path in pathlib.Path(directory).rglob('*'):
+        for file_path in pathlib.Path(directory).rglob("*"):
             if file_path.is_file():
                 tasks.append(_upload_file(file_path))
         await asyncio.gather(*tasks)
-    
+
 
 async def _download_recursive(directory: str, flatten: bool, url: str) -> None:
     directory = f"Downloads/{directory}"
@@ -260,10 +281,7 @@ async def _check_directory(directory: str) -> AsyncGenerator[str, None]:
 async def check_directory(directory: str) -> None:
     if os.getenv("DEV") is not None:
         return
-    tasks = [
-        _check_or_remove_file(file)
-        async for file in _check_directory(directory)
-    ]
+    tasks = [_check_or_remove_file(file) async for file in _check_directory(directory)]
     await asyncio.gather(*tasks)
 
 

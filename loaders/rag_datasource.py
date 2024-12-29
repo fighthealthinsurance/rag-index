@@ -62,7 +62,7 @@ class RagDataSource:
     async def _annotate(self, df: DataFrame) -> DataFrame:
         await asyncio.sleep(0)
         annotated = extract_and_annotate(df).repartition(self.target_partitions)
-        return annotated
+        return annotated.withColumn(lit(name).alias("data_source"))
 
     async def load(self, spark: SparkSession) -> DataFrame:
         await asyncio.sleep(0)
