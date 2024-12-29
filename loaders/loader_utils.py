@@ -151,19 +151,20 @@ async def download_file_if_not_existing(target_file: str, urls: list[str]) -> No
 
 async def _delete_object(client, Bucket, Key):
     try:
+        await asyncio.sleep(random.randint(0, 3))
         await client.delete_object(Bucket=Bucket, Key=Key)
-        print(f"Successfully deleted {Key}")
     except Exception as e:
-        print(f"Failed to delete {Key}: {e}")
+        pass
 
 
-async def _upload_file(file_path: pathlib.Path, delete=False, max_retries=1):
+async def _upload_file(file_path: pathlib.Path, delete=False, max_retries=3):
     try:
         # Check if we already have the file or upload it.
         # Perf is shit but we run this infrequently and I'm lazy.
         async with create_s3_client() as client:
             tasks = []
             try:
+                await asyncio.sleep(random.randint(0, 3))
                 await client.head_object(Bucket=s3_bucket, Key=str(file_path))
             except Exception as e:
                 tasks.append(client.upload_file(file_path, s3_bucket, str(file_path)))
@@ -177,7 +178,7 @@ async def _upload_file(file_path: pathlib.Path, delete=False, max_retries=1):
                     # Check that we have a lot of free space
                     usage = disk_usage("/tmp")
                     delay = 10
-                    while usage.free / usage.total < 0.35:
+                    while usage.free / usage.total < 0.38:
                         usage = disk_usage("/tmp")
                         delay = (
                             10
@@ -219,6 +220,10 @@ async def _upload_file(file_path: pathlib.Path, delete=False, max_retries=1):
                                     delete=True,
                                 )
                             )
+                            # Avoid staking too many tasks. 100 is arb.
+                            if len(tasks) > 100:
+                                await asyncio.gather(*tasks)
+                                tasks = []
                     # await here before we delete the temp dir
                     await asyncio.gather(*tasks)
                     tasks = []
@@ -239,13 +244,20 @@ async def _upload_file(file_path: pathlib.Path, delete=False, max_retries=1):
             raise e
 
 
-async def _upload_directory(directory: str):
+async def _upload_directory(directory: str, max_retries=2):
     if s3_session is not None:
         tasks = []
         for file_path in pathlib.Path(directory).rglob("*"):
             if file_path.is_file():
                 tasks.append(_upload_file(file_path))
-        await asyncio.gather(*tasks)
+        try:
+            await asyncio.gather(*tasks)
+        except Exception as e:
+            await asyncio.sleep(random.randint(60, 300))
+            if max_retries > 0:
+                await _upload_directory(directory, max_retries - 1)
+            else:
+                raise e
 
 
 async def _download_recursive(directory: str, flatten: bool, url: str) -> None:
