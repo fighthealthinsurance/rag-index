@@ -1,12 +1,13 @@
-from .pubmed import PubMedDataSource
-from .medline import MedlineDataSource
-from .arxiv import ArxivDataSource
-from .wikipedia import WikipediaDataSource
-from .loader_utils import load_or_create, executor
-from .spark_session import spark
-
 import asyncio
+
 from pyspark.sql import DataFrame, SparkSession
+
+from .arxiv import ArxivDataSource
+from .loader_utils import executor, load_or_create
+from .medline import MedlineDataSource
+from .pubmed import PubMedDataSource
+from .spark_session import spark
+from .wikipedia import WikipediaDataSource
 
 
 async def magic(spark: SparkSession) -> list[DataFrame]:
