@@ -151,7 +151,7 @@ async def _delete_object(client, Bucket, Key):
     except Exception as e:
         print(f"Failed to delete {key}: {e}")
             
-async def _upload_file(file_path: pathlib.Path):
+async def _upload_file(file_path: pathlib.Path, delete=False):
     # Check if we already have the file or upload it.
     # Perf is shit but we run this infrequently and I'm lazy.
     async with create_s3_client() as client:
@@ -171,30 +171,35 @@ async def _upload_file(file_path: pathlib.Path):
                 delay = 10
                 while usage.free / usage.total < 0.35:
                     usage = disk_usage("/tmp")
-                    delay = delay + (usage.total / usage.free) * 10
-                    print(f"Running low on space, waiting {delay} + {tasks}...")
+                    delay = 10 + (usage.total / usage.free) * 10
+                    print(f"Running low on space {usage}, waiting {delay} + {tasks}...")
                     usage = disk_usage("/tmp")
                     await asyncio.gather(*tasks)
                     tasks = []
                     await asyncio.sleep(delay)
                 # Extract archive better than blocking the Python thread
                 await check_call(["tar", "-xf", str(file_path), "-C", extract_dir])
-                for extracted_file_path in pathlib.Path(extract_dir).rglob('*!(gz)'):
-                    relative_path = str(extracted_file_path).lstrip(extract_dir + "/")
-                    remote_path = f"{file_path}-extracted/{relative_path}"
-                    remote_path_compressed = f"{file_path}-extracted/{relative_path}.gz"
-                    # Again avoid using the Python gzip lib for perf
-                    await check_call(["gzip", str(extracted_file_path)])
-                    # Non blocking fire and forget delete decompressed remote object
-                    asyncio.create_task(_delete_object(client, Bucket=s3_bucket, Key=str(remote_path)))
-                    tasks.append(_upload_file(
-                        Path(f"{str(extracted_file_path)}.gz")
-                    ))
+                for extracted_file_path in pathlib.Path(extract_dir).rglob('*'):
+                    # Only upload files and not internally compressed files
+                    if extracted_file_path.is_file() and not str(extracted_file_path).endswith(".gz"):
+                        relative_path = str(extracted_file_path).lstrip(extract_dir + "/")
+                        remote_path = f"{file_path}-extracted/{relative_path}"
+                        remote_path_compressed = f"{file_path}-extracted/{relative_path}.gz"
+                        # Again avoid using the Python gzip lib for perf
+                        await check_call(["gzip", str(extracted_file_path)])
+                        # Non blocking fire and forget delete decompressed remote object
+                        asyncio.create_task(_delete_object(client, Bucket=s3_bucket, Key=str(remote_path)))
+                        tasks.append(_upload_file(
+                            Path(f"{str(extracted_file_path)}.gz"),
+                            delete=True
+                        ))
                 # await here before we delete the temp dir
                 await asyncio.gather(*tasks)
                 tasks = []
         # Incase no tgz await
         await asyncio.gather(*tasks)
+        if delete:
+            file_path.unlink()
 
 async def _upload_directory(directory: str):
     if s3_session is not None:
