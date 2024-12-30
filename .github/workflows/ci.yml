@@ -26,3 +26,19 @@ jobs:
       - name: Check style
         run:
           tox -e black
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Install dependencies
+        run: uv tool install tox --with tox-uv
+
+      - name: Check style
+        run:
+          tox -e mypy

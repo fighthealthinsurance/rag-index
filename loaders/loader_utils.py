@@ -21,7 +21,7 @@ from .minio_settings import *
 
 url_regex = r"(https?|ftp)://[a-zA-Z0-9.-]+(?:\.[a-zA-Z]{2,})+(/[^\s]*)?"
 doi_regex = r"10\.\d{4,9}/[-._;()/:A-Z0-9]+"
-semi_legit = "(nih.gov|Category:Nutrition|modernmedicine|PLOS Medicine|veterinaryevidence|Portal bar \|Medicine|World Health Organization|cihr-irsc.gc.ca|nihr.ac.uk|nhs.uk)"
+semi_legit = "(nih.gov|Category:Nutrition|modernmedicine|PLOS Medicine|veterinaryevidence|Portal bar \\|Medicine|World Health Organization|cihr-irsc.gc.ca|nihr.ac.uk|nhs.uk)"
 semi_legit_compiled = re.compile(semi_legit, re.IGNORECASE)
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
