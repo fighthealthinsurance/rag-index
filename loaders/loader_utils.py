@@ -11,7 +11,7 @@ import tarfile
 import tempfile
 from shutil import disk_usage, which
 from subprocess import CalledProcessError
-from typing import AsyncGenerator, Awaitable, Callable, Generator, List
+from typing import AsyncGenerator, Awaitable, Callable, Generator, List, Optional
 
 import aioboto3
 from pyspark.sql import DataFrame, SparkSession
@@ -157,17 +157,20 @@ async def _delete_object(client, Bucket, Key):
         pass
 
 
-async def _upload_file(file_path: pathlib.Path, delete=False, max_retries=3):
+async def _upload_file(file_path: pathlib.Path, target: Optional[str]=None, delete=False, max_retries=3):
     try:
         # Check if we already have the file or upload it.
         # Perf is shit but we run this infrequently and I'm lazy.
         async with create_s3_client() as client:
             tasks = []
+            _target = str(file_path)
+            if target is not None:
+                _target = target
             try:
                 await asyncio.sleep(random.randint(0, 3))
-                await client.head_object(Bucket=s3_bucket, Key=str(file_path))
+                await client.head_object(Bucket=s3_bucket, Key=_target)
             except Exception as e:
-                tasks.append(client.upload_file(file_path, s3_bucket, str(file_path)))
+                tasks.append(client.upload_file(file_path, s3_bucket, _target))
             # Is it a tarfile? If so upload the contents (Spark doesn't love loading from tars)
             if str(file_path).endswith(".tgz") or str(file_path).endswith(".tar.gz"):
                 # Wait a random amount of time before starting our magic
@@ -206,20 +209,26 @@ async def _upload_file(file_path: pathlib.Path, delete=False, max_retries=3):
                             remote_path_compressed = (
                                 f"{file_path}-extracted/{relative_path}.gz"
                             )
-                            # Again avoid using the Python gzip lib for perf
-                            await check_call(["gzip", str(extracted_file_path)])
-                            # Non blocking fire and forget delete decompressed remote object
-                            asyncio.create_task(
-                                _delete_object(
-                                    client, Bucket=s3_bucket, Key=str(remote_path)
+                            # Do we need to upload this file?
+                            try:
+                                await client.head_object(Bucket=s3_bucket, Key=str(remote_path_compressed))
+                                extracted_file_path.unlink()
+                            except:
+                                # Again avoid using the Python gzip lib for perf
+                                await check_call(["gzip", str(extracted_file_path)])
+                                # Non blocking fire and forget delete decompressed remote object
+                                asyncio.create_task(
+                                    _delete_object(
+                                        client, Bucket=s3_bucket, Key=str(remote_path)
+                                    )
                                 )
-                            )
-                            tasks.append(
-                                _upload_file(
-                                    pathlib.Path(f"{str(extracted_file_path)}.gz"),
-                                    delete=True,
+                                tasks.append(
+                                    _upload_file(
+                                        pathlib.Path(f"{str(extracted_file_path)}.gz"),
+                                        target=remote_path_compressed,
+                                        delete=True,
+                                    )
                                 )
-                            )
                             # Avoid staking too many tasks. 100 is arb.
                             if len(tasks) > 100:
                                 await asyncio.gather(*tasks)
@@ -239,7 +248,7 @@ async def _upload_file(file_path: pathlib.Path, delete=False, max_retries=3):
                 print(f"Was an OSError... waiting a bit more")
                 await asyncio.sleep(random.randint(60, 300))
             print("Retrying!")
-            await _upload_file(file_path, delete=delete, max_retries=max_retries - 1)
+            await _upload_file(file_path, delete=delete, target=target, max_retries=max_retries - 1)
         else:
             raise e
 
