@@ -157,7 +157,9 @@ async def _delete_object(client, Bucket, Key):
         pass
 
 
-async def _upload_file(file_path: pathlib.Path, target: Optional[str]=None, delete=False, max_retries=3):
+async def _upload_file(
+    file_path: pathlib.Path, target: Optional[str] = None, delete=False, max_retries=3
+):
     try:
         # Check if we already have the file or upload it.
         # Perf is shit but we run this infrequently and I'm lazy.
@@ -211,7 +213,9 @@ async def _upload_file(file_path: pathlib.Path, target: Optional[str]=None, dele
                             )
                             # Do we need to upload this file?
                             try:
-                                await client.head_object(Bucket=s3_bucket, Key=str(remote_path_compressed))
+                                await client.head_object(
+                                    Bucket=s3_bucket, Key=str(remote_path_compressed)
+                                )
                                 extracted_file_path.unlink()
                             except:
                                 # Again avoid using the Python gzip lib for perf
@@ -248,7 +252,9 @@ async def _upload_file(file_path: pathlib.Path, target: Optional[str]=None, dele
                 print(f"Was an OSError... waiting a bit more")
                 await asyncio.sleep(random.randint(60, 300))
             print("Retrying!")
-            await _upload_file(file_path, delete=delete, target=target, max_retries=max_retries - 1)
+            await _upload_file(
+                file_path, delete=delete, target=target, max_retries=max_retries - 1
+            )
         else:
             raise e
 
