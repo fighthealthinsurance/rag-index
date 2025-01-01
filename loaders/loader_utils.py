@@ -279,6 +279,15 @@ async def _upload_directory(directory: str, max_retries=2):
                 await _upload_directory(directory, max_retries - 1)
             else:
                 raise e
+    # We can also just do local extractions for mini mode
+    elif mini_pipeline:
+        for file_path in pathlib.Path(directory).rglob("*"):
+            if file_path.is_file():
+                if file_path.endswith(".tar.gz"):
+                    extract_dir = str(file_path) + "-extract"
+                    await check_call(["tar", "-xf", str(file_path), "-C", extract_dir])
+                elif file_path.endswith(".gz"):
+                    await check_call("gunzip", str(file_path))
 
 
 async def _download_recursive(directory: str, flatten: bool, url: str) -> None:
