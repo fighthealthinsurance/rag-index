@@ -86,7 +86,7 @@ class RecursiveDataSource(RagDataSource):
         await download_recursive(self.directory_name, self.flatten, self.urls)
 
     def path(self) -> str:
-        return f"Downloads/{self.directory_name}/{self.match_condition}"
+        return dl_local_or_minio_path(f"Downloads/{self.directory_name}/{self.match_condition}")
 
 
 class RecursiveTgzDataSource(RecursiveDataSource):
@@ -114,9 +114,9 @@ class CompressedRagDataSource(RagDataSource):
 
     def path(self) -> str:
         if self.decompress_needed:
-            return f"Downloads/{self.extracted_filename}"
+            return dl_local_or_minio_path(f"Downloads/{self.extracted_filename}")
         else:
-            return f"Downloads/{self.filename}"
+            return dl_local_or_minio_path(f"Downloads/{self.filename}")
 
     async def _select(self, df: DataFrame) -> DataFrame:
         """Select the relevant fields, most likely should be overridden."""

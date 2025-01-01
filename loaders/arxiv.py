@@ -50,6 +50,11 @@ class ArxivDataSource(CompressedRagDataSource):
         ]
     )
 
+    async def _filter(self, df: DataFrame) -> DataFrame:
+        category_filtered = df.filter(df["categories"].contains("bio"))
+        upstream_filtered = await super()._filter(category_filtered)
+        return upstream_filtered
+
     async def _extract(self):
         if not os.path.exists(f"Downloads/{self.extracted_filename}"):
             await check_call(["unzip", f"Downloads/{self.filename}", "-d", "Downloads"])

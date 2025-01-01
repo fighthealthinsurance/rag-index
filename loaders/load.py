@@ -8,15 +8,20 @@ from .medline import MedlineDataSource
 from .pubmed import PubMedDataSource
 from .spark_session import spark
 from .wikipedia import WikipediaDataSource
-
+from .loader_utils import mini_pipeline
 
 async def magic(spark: SparkSession) -> list[DataFrame]:
     data_sources = [
         ArxivDataSource(),
-        PubMedDataSource(),
+#        PubMedDataSource(),
         MedlineDataSource(),
         WikipediaDataSource(),
     ]
+    if mini_pipeline:
+        data_sources = [
+            PubMedDataSource(),
+            MedlineDataSource(),
+        ]
     results = map(lambda x: x.load(spark), data_sources)
     main_bloop: list[DataFrame] = await asyncio.gather(*results)
     return main_bloop
@@ -25,7 +30,9 @@ async def magic(spark: SparkSession) -> list[DataFrame]:
 async def create_data_inputs(spark: SparkSession) -> DataFrame:
     dfs = await magic(spark)
     if len(dfs) > 1:
-        combined = dfs[0].union(*dfs[1:])
+        combined = dfs[0]
+        for df in dfs[1:]:
+            combined = combined.unionByName(df, allowMissingColumns=True)
         return combined
     else:
         return dfs[0]
