@@ -56,6 +56,6 @@ jobs:
       - name: Install dependencies
         run: uv tool install tox --with tox-uv
 
-      - name: Check style
+      - name: Run the pipeline in mini mode
         run:
           tox -e mini-pipeline
