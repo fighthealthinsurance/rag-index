@@ -42,6 +42,7 @@ jobs:
       - name: Check style
         run:
           tox -e mypy
+
   mini-pipeline:
     runs-on: ubuntu-latest
     steps:

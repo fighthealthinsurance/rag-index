@@ -10,10 +10,11 @@ from .spark_session import spark
 from .wikipedia import WikipediaDataSource
 from .loader_utils import mini_pipeline
 
+
 async def magic(spark: SparkSession) -> list[DataFrame]:
     data_sources = [
         ArxivDataSource(),
-#        PubMedDataSource(),
+        #        PubMedDataSource(),
         MedlineDataSource(),
         WikipediaDataSource(),
     ]

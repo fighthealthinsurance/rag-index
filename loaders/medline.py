@@ -17,9 +17,7 @@ class MedlineDataSource(RecursiveDataSource):
     ]
     # If we've running the mini pipeline
     if os.getenv("TESTING_MINI_PIPELINE"):
-        urls = [
-            "https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/pubmed24n1224.xml.gz"
-        ]
+        urls = ["https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/pubmed24n1224.xml.gz"]
     input_options = {
         "rowTag": "PubmedArticle",
         "rootTag": "PubmedArticleSet",

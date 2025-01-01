@@ -52,9 +52,7 @@ class PubMedDataSource(RecursiveTgzDataSource):
         text_files = (
             spark.read.format("text")
             .option("wholeText", "True")
-            .load(
-                path
-            )
+            .load(path)
             .withColumn("input_file_name", input_file_name())
         )
         text_files.show(truncate=False)

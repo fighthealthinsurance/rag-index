@@ -86,7 +86,9 @@ class RecursiveDataSource(RagDataSource):
         await download_recursive(self.directory_name, self.flatten, self.urls)
 
     def path(self) -> str:
-        return dl_local_or_minio_path(f"Downloads/{self.directory_name}/{self.match_condition}")
+        return dl_local_or_minio_path(
+            f"Downloads/{self.directory_name}/{self.match_condition}"
+        )
 
 
 class RecursiveTgzDataSource(RecursiveDataSource):
