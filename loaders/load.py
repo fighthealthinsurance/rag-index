@@ -14,7 +14,7 @@ from .loader_utils import mini_pipeline
 async def magic(spark: SparkSession) -> list[DataFrame]:
     data_sources = [
         ArxivDataSource(),
-        #        PubMedDataSource(),
+        PubMedDataSource(),
         MedlineDataSource(),
         WikipediaDataSource(),
     ]
@@ -39,4 +39,6 @@ async def create_data_inputs(spark: SparkSession) -> DataFrame:
         return dfs[0]
 
 
-combined = asyncio.run(load_or_create(spark, "initial_records", create_data_inputs))
+combined = asyncio.run(
+    load_or_create(spark, "initial_records", create_data_inputs), debug=True
+)

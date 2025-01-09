@@ -26,10 +26,11 @@ class PubMedDataSource(RecursiveTgzDataSource):
     def urls(self) -> list[str]:
         if mini_pipeline:
             return [
-                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2024-12-18.filelist.csv",
-                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2024-12-18.tar.gz",
-                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC000xxxxxx.baseline.2024-12-18.filelist.csv",
+                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2025-01-01.filelist.csv",
+                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2025-01-01.tar.gz",
                 "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC000xxxxxx.baseline.2024-12-18.tar.gz",
+                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.PMC011xxxxxx.baseline.2024-12-17.tar.gz",
+                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.PMC000xxxxxx.baseline.2024-12-17.filelist.csv",
             ]
         return ["https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/"]
 

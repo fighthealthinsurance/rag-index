@@ -45,6 +45,7 @@ def dl_local_or_minio_path(local_path: str) -> str:
         os.getenv("SPARK_MASTER") is not None
         and minio_host is not None
         and minio_bucket is not None
+        and s3_session is not None
     ):
         return f"s3a://{minio_bucket}/{local_path}"
     else:
@@ -53,7 +54,7 @@ def dl_local_or_minio_path(local_path: str) -> str:
 
 def local_or_minio_path(local_path: str) -> str:
     # Use local path if we are using have minio setup. Always transfers to minio.
-    if minio_host is not None and minio_bucket is not None:
+    if minio_host is not None and minio_bucket is not None and s3_session is not None:
         return f"s3a://{minio_bucket}/{local_path}"
     else:
         return local_path
@@ -98,14 +99,20 @@ async def load_or_create(
     return df
 
 
-async def check_call(cmd, max_retries=0, **kwargs):
+async def check_call(cmd, max_retries=1, **kwargs):
     print(f"Running: {cmd}")
     process = await asyncio.create_subprocess_exec(
         *cmd, **kwargs, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
     )
-    return_code = await process.wait()
+    stdout, stderr = await process.communicate()
+    return_code = process.returncode
     if return_code != 0:
         if max_retries < 1:
+            print(f"Error got exit code {return_code} from {cmd}")
+            print("***************STDOUT********************")
+            print(stdout.decode())
+            print("****************STDERR********************")
+            print(stderr.decode())
             raise CalledProcessError(return_code, cmd)
         else:
             print(f"Retrying {cmd}")
@@ -184,21 +191,24 @@ async def _upload_file(
             if str(file_path).endswith(".tgz") or str(file_path).endswith(".tar.gz"):
                 # Wait a random amount of time before starting our magic
                 await asyncio.sleep(random.randint(0, 30))
+                file_name = file_path.name
                 with tempfile.TemporaryDirectory(
-                    prefix="extract" + file_path.name[0:20]
+                    prefix="extract" + file_name[0:10]
                 ) as extract_dir:
+                    print(f"Using {extract_dir} to extract from {file_name}")
                     # Check that we have a lot of free space
-                    usage = disk_usage("/tmp")
+                    usage = disk_usage(extract_dir)
                     delay = 10
                     while usage.free / usage.total < 0.38:
-                        usage = disk_usage("/tmp")
+                        usage = disk_usage(extract_dir)
                         delay = (
                             10
                             + int((usage.total / usage.free) * 10)
                             + random.randint(0, 10)
                         )
                         print(
-                            f"Running low on space {usage}, waiting {delay} + {tasks}..."
+                            f"Running low on space {usage} for {extract_dir}, "
+                            + f"waiting {delay} + {tasks}..."
                         )
                         usage = disk_usage("/tmp")
                         await asyncio.gather(*tasks)
@@ -221,7 +231,8 @@ async def _upload_file(
                             # Do we need to upload this file?
                             try:
                                 await client.head_object(
-                                    Bucket=s3_bucket, Key=str(remote_path_compressed)
+                                    Bucket=s3_bucket,
+                                    Key=str(remote_path_compressed),
                                 )
                                 extracted_file_path.unlink()
                             except:
@@ -230,7 +241,9 @@ async def _upload_file(
                                 # Non blocking fire and forget delete decompressed remote object
                                 asyncio.create_task(
                                     _delete_object(
-                                        client, Bucket=s3_bucket, Key=str(remote_path)
+                                        client,
+                                        Bucket=s3_bucket,
+                                        Key=str(remote_path),
                                     )
                                 )
                                 tasks.append(
@@ -282,13 +295,23 @@ async def _upload_directory(directory: str, max_retries=2):
                 raise e
     # We can also just do local extractions for mini mode
     elif mini_pipeline:
-        for file_path in pathlib.Path(directory).rglob("*"):
+        # Static extract so as we add files we don't reset the glob
+        file_paths = list(pathlib.Path(directory).rglob("*gz"))
+        for file_path in file_paths:
             if file_path.is_file():
                 if str(file_path).endswith(".tar.gz"):
                     extract_dir = str(file_path) + "-extract"
-                    await check_call(["tar", "-xf", str(file_path), "-C", extract_dir])
-                elif str(file_path).endswith(".gz"):
-                    await check_call(["gunzip", str(file_path)])
+                    os.makedirs(extract_dir, exist_ok=True)
+                    await check_call(
+                        [
+                            "tar",
+                            "--skip-old-files",
+                            "-xf",
+                            str(file_path),
+                            "-C",
+                            extract_dir,
+                        ]
+                    )
 
 
 async def _download_recursive(directory: str, flatten: bool, url: str) -> None:
