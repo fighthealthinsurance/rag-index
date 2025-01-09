@@ -74,7 +74,6 @@ class RagDataSource:
 
 class RecursiveDataSource(RagDataSource):
     directory_name: str = ""
-    urls: List[str] = []
     input_format: str = "json"
     schema: Optional[StructType] = None
     match_condition: str = "*"
@@ -90,10 +89,13 @@ class RecursiveDataSource(RagDataSource):
             f"Downloads/{self.directory_name}/{self.match_condition}"
         )
 
+    @property
+    def urls(self) -> list[str]:
+        return []
+
 
 class RecursiveTgzDataSource(RecursiveDataSource):
     directory_name: str = ""
-    urls: List[str] = []
     input_format: str = "json"
     schema: Optional[StructType] = None
     match_condition: str = "*"
@@ -103,11 +105,14 @@ class RecursiveTgzDataSource(RecursiveDataSource):
 class CompressedRagDataSource(RagDataSource):
     filename: str = ""
     extracted_filename: str = ""
-    urls: List[str] = []
     input_format: str = "csv"
     schema: Optional[StructType] = None
     input_options: Dict[str, str] = {}
     decompress_needed = False
+
+    @property
+    def urls(self) -> list[str]:
+        return []
 
     async def _download(self, spark: SparkSession):
         """Download the data."""

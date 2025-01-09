@@ -1,5 +1,6 @@
 import asyncio
 import concurrent
+import concurrent.futures
 import gzip
 import io
 import os
@@ -11,7 +12,7 @@ import tarfile
 import tempfile
 from shutil import disk_usage, which
 from subprocess import CalledProcessError
-from typing import AsyncGenerator, Awaitable, Callable, Generator, List, Optional
+from typing import Any, AsyncGenerator, Awaitable, Callable, Generator, List, Optional
 
 import aioboto3
 from pyspark.sql import DataFrame, SparkSession
@@ -21,7 +22,7 @@ from .minio_settings import *
 
 url_regex = r"(https?|ftp)://[a-zA-Z0-9.-]+(?:\.[a-zA-Z]{2,})+(/[^\s]*)?"
 doi_regex = r"10\.\d{4,9}/[-._;()/:A-Z0-9]+"
-semi_legit = "(nih\\.gov|Category:Nutrition|modernmedicine|PLOS Medicine|Portal bar ..Medicine|World Health Organization|https?://[a-z\.A-Z]*cihr-irsc\\.gc\\.ca|https?://[a-z\.A-Z]*nihr\\.ac\\.uk|nhs\\.uk)"
+semi_legit = r"(nih\.gov|Category:Nutrition|modernmedicine|PLOS Medicine|Portal bar \.+Medicine|World Health Organization|https?://[a-z\.A-Z]*cihr-irsc\.gc\.ca|https?://[a-z\.A-Z]*nihr\.ac\.uk|nhs\.uk)"
 semi_legit_compiled = re.compile(semi_legit, re.IGNORECASE)
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
@@ -283,11 +284,11 @@ async def _upload_directory(directory: str, max_retries=2):
     elif mini_pipeline:
         for file_path in pathlib.Path(directory).rglob("*"):
             if file_path.is_file():
-                if file_path.endswith(".tar.gz"):
+                if str(file_path).endswith(".tar.gz"):
                     extract_dir = str(file_path) + "-extract"
                     await check_call(["tar", "-xf", str(file_path), "-C", extract_dir])
-                elif file_path.endswith(".gz"):
-                    await check_call("gunzip", str(file_path))
+                elif str(file_path).endswith(".gz"):
+                    await check_call(["gunzip", str(file_path)])
 
 
 async def _download_recursive(directory: str, flatten: bool, url: str) -> None:

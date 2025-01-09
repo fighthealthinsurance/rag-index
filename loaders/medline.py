@@ -11,13 +11,6 @@ from .rag_datasource import *
 
 class MedlineDataSource(RecursiveDataSource):
     flattern = True
-    urls = [
-        "https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/",
-        "https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/",
-    ]
-    # If we've running the mini pipeline
-    if os.getenv("TESTING_MINI_PIPELINE"):
-        urls = ["https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/pubmed24n1224.xml.gz"]
     input_options = {
         "rowTag": "PubmedArticle",
         "rootTag": "PubmedArticleSet",
@@ -27,6 +20,18 @@ class MedlineDataSource(RecursiveDataSource):
     directory_name = "recursive_medline"
     match_condition = "*.xml.gz"
     name = "medline"
+
+    @property
+    def urls(self) -> list[str]:
+        # If we've running the mini pipeline
+        if os.getenv("TESTING_MINI_PIPELINE"):
+            return [
+                "https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/pubmed24n1224.xml.gz"
+            ]
+        return [
+            "https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/",
+            "https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/",
+        ]
 
     async def _select(self, df: DataFrame) -> DataFrame:
         await asyncio.sleep(0)

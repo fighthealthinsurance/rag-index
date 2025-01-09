@@ -26,7 +26,7 @@ class WikipediaDataSource(CompressedRagDataSource):
 
     # Use `classmethod` to resolve `filename` properly.
     @property
-    def urls(self):
+    def urls(self) -> list[str]:
         return list(map(lambda base: f"{base}{self.filename}", self.wikimedia_mirrors))
 
     async def _filter(self, df: DataFrame) -> DataFrame:

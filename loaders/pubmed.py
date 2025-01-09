@@ -20,15 +20,18 @@ class PubMedDataSource(RecursiveTgzDataSource):
     match_condition = "ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/*/*/*.filelist.csv"
     input_format = "csv"
     directory_name = "recursive_pubmed_oa"
-    urls = ["https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/"]
-    if mini_pipeline:
-        urls = [
-            "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2024-12-18.filelist.csv",
-            "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2024-12-18.tar.gz",
-            "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC000xxxxxx.baseline.2024-12-18.filelist.csv",
-            "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC000xxxxxx.baseline.2024-12-18.tar.gz",
-        ]
     target_partitions = 10000
+
+    @property
+    def urls(self) -> list[str]:
+        if mini_pipeline:
+            return [
+                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2024-12-18.filelist.csv",
+                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2024-12-18.tar.gz",
+                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC000xxxxxx.baseline.2024-12-18.filelist.csv",
+                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC000xxxxxx.baseline.2024-12-18.tar.gz",
+            ]
+        return ["https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/"]
 
     async def _select(self, df: DataFrame) -> DataFrame:
         return (
