@@ -1,6 +1,7 @@
 import asyncio
 import os
 from typing import Dict, List, Optional
+import subprocess
 
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.functions import lit
@@ -55,6 +56,7 @@ class RagDataSource:
 
     async def _load(self, spark: SparkSession) -> DataFrame:
         await self._download(spark)
+        subprocess.run(["sync"])
         await self._extract()
         df = await self._initial_load(spark)
         selected = await self._select(df)
