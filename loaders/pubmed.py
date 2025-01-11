@@ -28,9 +28,6 @@ class PubMedDataSource(RecursiveTgzDataSource):
             return [
                 "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2025-01-01.filelist.csv",
                 "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2025-01-01.tar.gz",
-                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.PMC000xxxxxx.baseline.2024-12-18.tar.gz",
-                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.PMC011xxxxxx.baseline.2024-12-17.tar.gz",
-                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.PMC000xxxxxx.baseline.2024-12-17.filelist.csv",
             ]
         return ["https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/"]
 
@@ -46,6 +43,29 @@ class PubMedDataSource(RecursiveTgzDataSource):
 
     async def _filter(self, df: DataFrame) -> DataFrame:
         return df.filter(df["Retracted"] != "yes")
+
+    async def _extract(self):
+        if mini_pipeline:
+            # Static extract so as we add files we don't reset the glob
+            file_paths = list(pathlib.Path(self.directory_name).rglob("*.tar.gz"))
+            for file_path in file_paths:
+                if file_path.is_file():
+                    if str(file_path).endswith(".tar.gz"):
+                        extract_dir = str(file_path) + "-extract"
+                        os.makedirs(extract_dir, exist_ok=True)
+                        await check_call(
+                            [
+                                "tar",
+                                "--skip-old-files",
+                                "-xf",
+                                str(file_path),
+                                "-C",
+                                extract_dir,
+                            ]
+                        )
+                    else:
+                        print(f"Skipping {file_path}")
+
 
     async def _final_select(self, df: DataFrame) -> DataFrame:
         # Always read from S3A _unless_ we're in miniepipeline mode

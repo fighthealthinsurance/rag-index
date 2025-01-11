@@ -295,26 +295,6 @@ async def _upload_directory(directory: str, max_retries=2):
                 await _upload_directory(directory, max_retries - 1)
             else:
                 raise e
-    # We can also just do local extractions for mini mode
-    elif mini_pipeline:
-        # Static extract so as we add files we don't reset the glob
-        file_paths = list(pathlib.Path(directory).rglob("*gz"))
-        for file_path in file_paths:
-            if file_path.is_file():
-                if str(file_path).endswith(".tar.gz"):
-                    extract_dir = str(file_path) + "-extract"
-                    os.makedirs(extract_dir, exist_ok=True)
-                    await check_call(
-                        [
-                            "tar",
-                            "--skip-old-files",
-                            "-xf",
-                            str(file_path),
-                            "-C",
-                            extract_dir,
-                        ]
-                    )
-
 
 async def _download_recursive(directory: str, flatten: bool, url: str) -> None:
     directory = f"Downloads/{directory}"
