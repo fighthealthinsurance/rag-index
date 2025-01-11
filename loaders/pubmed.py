@@ -66,7 +66,6 @@ class PubMedDataSource(RecursiveTgzDataSource):
                     else:
                         print(f"Skipping {file_path}")
 
-
     async def _final_select(self, df: DataFrame) -> DataFrame:
         # Always read from S3A _unless_ we're in miniepipeline mode
         path = f"s3a://{minio_bucket}/Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/*/*/*/*/*.txt"

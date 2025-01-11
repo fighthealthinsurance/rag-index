@@ -296,6 +296,7 @@ async def _upload_directory(directory: str, max_retries=2):
             else:
                 raise e
 
+
 async def _download_recursive(directory: str, flatten: bool, url: str) -> None:
     directory = f"Downloads/{directory}"
     command = [
