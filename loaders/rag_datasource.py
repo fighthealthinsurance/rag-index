@@ -55,13 +55,17 @@ class RagDataSource:
         return df
 
     async def _load(self, spark: SparkSession) -> DataFrame:
+        print(f"Downloading {self.name}")
         await self._download(spark)
         await asyncio.sleep(1)
         subprocess.run(["sync"])
         await asyncio.sleep(1)
+        print(f"Extracting {self.name}")
         await self._extract()
-        await asyncio.sleep(0)
+        await asyncio.sleep(1)
         subprocess.run(["sync"])
+        await asyncio.sleep(1)
+        print(f"Loading {self.name}")
         df = await self._initial_load(spark)
         selected = await self._select(df)
         filtered = (await self._filter(selected)).repartition(self.target_partitions)

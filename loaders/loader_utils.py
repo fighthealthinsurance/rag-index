@@ -174,6 +174,8 @@ async def _delete_object(client, Bucket, Key):
 async def _upload_file(
     file_path: pathlib.Path, target: Optional[str] = None, delete=False, max_retries=3
 ):
+    if mini_pipeline:
+        return
     try:
         # Check if we already have the file or upload it.
         # Perf is shit but we run this infrequently and I'm lazy.
