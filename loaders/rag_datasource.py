@@ -67,9 +67,14 @@ class RagDataSource:
         await asyncio.sleep(1)
         print(f"Loading {self.name}")
         df = await self._initial_load(spark)
+        print("Restricting fields")
         selected = await self._select(df)
-        filtered = (await self._filter(selected)).repartition(self.target_partitions)
-        final_selected = await self._final_select(filtered)
+        print("Filtering...")
+        filtered = await self._filter(selected)
+        print(f"Repartitioning to {self.target_partitions}")
+        partitioned = filtered.repartition(self.target_partitions)
+        final_selected = await self._final_select(partitioned)
+        print("Annotating...")
         return await self._annotate(final_selected)
 
     async def _annotate(self, df: DataFrame) -> DataFrame:

@@ -35,6 +35,7 @@ class MedlineDataSource(RecursiveDataSource):
 
     async def _select(self, df: DataFrame) -> DataFrame:
         await asyncio.sleep(0)
+        print(f"Selecting the relevant components...")
         selected = df.select(
             concat_ws(
                 " ",
@@ -53,6 +54,7 @@ class MedlineDataSource(RecursiveDataSource):
                 "pubmed_article_ids"
             ),  # doi, pmedid
         )
+        print("Loaded the medline data:")
         selected.show()
         print("Huzzah!")
         return selected
