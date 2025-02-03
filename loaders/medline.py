@@ -54,4 +54,5 @@ class MedlineDataSource(RecursiveDataSource):
             ),  # doi, pmedid
         )
         selected.show()
+        print("Huzzah!")
         return selected

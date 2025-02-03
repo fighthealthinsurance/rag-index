@@ -25,6 +25,7 @@ async def magic(spark: SparkSession) -> list[DataFrame]:
         ]
     results = map(lambda x: x.load(spark), data_sources)
     main_bloop: list[DataFrame] = await asyncio.gather(*results)
+    print(f"Got dataframes {main_bloop}")
     return main_bloop
 
 
