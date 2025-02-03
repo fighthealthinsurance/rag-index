@@ -27,7 +27,6 @@ class MedlineDataSource(RecursiveDataSource):
         if os.getenv("TESTING_MINI_PIPELINE"):
             return [
                 "https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/pubmed25n1275.xml.gz",
-                "https://ftp.ncbi.nlm.nih.gov/pubmed/updatefiles/pubmed25n1275.txt.gz",
             ]
         return [
             "https://ftp.ncbi.nlm.nih.gov/pubmed/baseline/",

@@ -2,7 +2,7 @@ import asyncio
 import os
 
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import input_file_name, regexp_replace, split, udf
+from pyspark.sql.functions import input_file_name, regexp_replace, split, udf, element_at
 from pyspark.sql.types import StringType
 
 from .loader_utils import *
@@ -17,7 +17,7 @@ class PubMedDataSource(RecursiveTgzDataSource):
         "header": "True",
     }
     # match the filelist csvs
-    match_condition = "ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/*/*/*.filelist.csv"
+    match_condition = "ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*.filelist.csv"
     input_format = "csv"
     directory_name = "recursive_pubmed_oa"
     target_partitions = 10000
@@ -34,7 +34,7 @@ class PubMedDataSource(RecursiveTgzDataSource):
     async def _select(self, df: DataFrame) -> DataFrame:
         return (
             df.withColumn("file_name", split(df["Article File"], "/").getItem(1))
-            .withColumn("input_file_name", input_file_name())
+            .withColumn("csv_input_file_name", input_file_name())
             .withColumn(
                 "artifact_file_path",
                 regexp_replace(input_file_name(), "\\.filelist\\.csv$", ".tar.gz"),
@@ -47,7 +47,8 @@ class PubMedDataSource(RecursiveTgzDataSource):
     async def _extract(self):
         if mini_pipeline:
             # Static extract so as we add files we don't reset the glob
-            file_paths = list(pathlib.Path(self.directory_name).rglob("*.tar.gz"))
+            file_paths = list(pathlib.Path(f"Downloads/{self.directory_name}").rglob("*.tar.gz"))
+            print(f"Extracting from {file_paths} out of Downloads/{self.directory_name}")
             for file_path in file_paths:
                 if file_path.is_file():
                     if str(file_path).endswith(".tar.gz"):
@@ -67,16 +68,23 @@ class PubMedDataSource(RecursiveTgzDataSource):
                         print(f"Skipping {file_path}")
 
     async def _final_select(self, df: DataFrame) -> DataFrame:
+        # Here we're a little different since we're doing a join.
         # Always read from S3A _unless_ we're in miniepipeline mode
-        path = f"s3a://{minio_bucket}/Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/*/*/*/*/*.txt"
+        path = f"s3a://{minio_bucket}/Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*/*/*.txt"
         if mini_pipeline:
-            path = "./Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/*/*/*/*/*.txt"
+            path = "./Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*/*/*.txt"
         spark = SparkSession.builder.getOrCreate()
         text_files = (
             spark.read.format("text")
             .option("wholeText", "True")
             .load(path)
-            .withColumn("input_file_name", input_file_name())
+            .withColumn("txt_input_file_name", input_file_name())
+            .withColumn(
+                "file_name",
+                element_at(split(input_file_name(), "/"), -1))
+            .withColumnRenamed("value", "text")
         )
-        text_files.show(truncate=False)
-        return df
+        df.show(truncate=True)
+        text_files.show(truncate=True)
+        joined = df.join(text_files, on="file_name")
+        return joined
