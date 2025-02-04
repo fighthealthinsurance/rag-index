@@ -2,7 +2,13 @@ import asyncio
 import os
 
 from pyspark.sql import DataFrame, SparkSession
-from pyspark.sql.functions import input_file_name, regexp_replace, split, udf, element_at
+from pyspark.sql.functions import (
+    input_file_name,
+    regexp_replace,
+    split,
+    udf,
+    element_at,
+)
 from pyspark.sql.types import StringType
 
 from .loader_utils import *
@@ -47,8 +53,12 @@ class PubMedDataSource(RecursiveTgzDataSource):
     async def _extract(self):
         if mini_pipeline:
             # Static extract so as we add files we don't reset the glob
-            file_paths = list(pathlib.Path(f"Downloads/{self.directory_name}").rglob("*.tar.gz"))
-            print(f"Extracting from {file_paths} out of Downloads/{self.directory_name}")
+            file_paths = list(
+                pathlib.Path(f"Downloads/{self.directory_name}").rglob("*.tar.gz")
+            )
+            print(
+                f"Extracting from {file_paths} out of Downloads/{self.directory_name}"
+            )
             for file_path in file_paths:
                 if file_path.is_file():
                     if str(file_path).endswith(".tar.gz"):
@@ -79,9 +89,7 @@ class PubMedDataSource(RecursiveTgzDataSource):
             .option("wholeText", "True")
             .load(path)
             .withColumn("txt_input_file_name", input_file_name())
-            .withColumn(
-                "file_name",
-                element_at(split(input_file_name(), "/"), -1))
+            .withColumn("file_name", element_at(split(input_file_name(), "/"), -1))
             .withColumnRenamed("value", "text")
         )
         df.show(truncate=True)
