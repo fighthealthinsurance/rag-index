@@ -18,7 +18,7 @@ if minio_username is not None and minio_password is not None and minio_host is n
     conf = (
         conf.set(
             "spark.hadoop.fs.s3a.aws.credentials.provider",
-            "com.amazonaws.auth.profile.ProfileCredentialsProvider",
+            "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
         )
         .set(
             "spark.jars.packages",
