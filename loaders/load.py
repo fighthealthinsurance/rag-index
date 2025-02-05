@@ -8,6 +8,7 @@ from .medline import MedlineDataSource
 from .pubmed import PubMedDataSource
 from .spark_session import spark
 from .wikipedia import WikipediaDataSource
+from .legacy_cdc import LegacyCDC
 from .loader_utils import mini_pipeline
 
 
@@ -22,6 +23,7 @@ async def magic(spark: SparkSession) -> list[DataFrame]:
         data_sources = [
             PubMedDataSource(),
             MedlineDataSource(),
+            LegacyCDC(),
         ]
     results = map(lambda x: x.load(spark), data_sources)
     main_bloop: list[DataFrame] = await asyncio.gather(*results)

@@ -120,6 +120,7 @@ class RecursiveTgzDataSource(RecursiveDataSource):
 class CompressedRagDataSource(RagDataSource):
     filename: str = ""
     extracted_filename: str = ""
+    extracted_dir: str = ""
     input_format: str = "csv"
     schema: Optional[StructType] = None
     input_options: Dict[str, str] = {}
@@ -136,7 +137,10 @@ class CompressedRagDataSource(RagDataSource):
 
     def path(self) -> str:
         if self.decompress_needed:
-            return dl_local_or_minio_path(f"Downloads/{self.extracted_filename}")
+            if self.extracted_filename != "":
+                return dl_local_or_minio_path(f"Downloads/{self.extracted_filename}")
+            else:
+                return dl_local_or_minio_path(f"Downloads/{self.extracted_dir}")
         else:
             return dl_local_or_minio_path(f"Downloads/{self.filename}")
 
