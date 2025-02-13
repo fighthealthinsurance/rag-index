@@ -27,6 +27,8 @@ semi_legit_compiled = re.compile(semi_legit, re.IGNORECASE)
 
 executor = concurrent.futures.ThreadPoolExecutor(max_workers=10)
 
+scratch = os.getenv("SCRATCH", "/tmp")
+
 mini_pipeline = False
 tmp = os.getenv("TESTING_MINI_PIPELINE")
 if tmp:
@@ -195,13 +197,13 @@ async def _upload_file(
                 await asyncio.sleep(random.randint(0, 30))
                 file_name = file_path.name
                 with tempfile.TemporaryDirectory(
-                    prefix="extract" + file_name[0:10]
+                        prefix="extract" + file_name[0:10], dir=scratch,
                 ) as extract_dir:
                     print(f"Using {extract_dir} to extract from {file_name}")
                     # Check that we have a lot of free space
                     usage = disk_usage(extract_dir)
                     delay = 10
-                    while usage.free / usage.total < 0.38:
+                    while usage.free / usage.total < 0.30:
                         usage = disk_usage(extract_dir)
                         delay = (
                             10
@@ -212,7 +214,7 @@ async def _upload_file(
                             f"Running low on space {usage} for {extract_dir}, "
                             + f"waiting {delay} + {tasks}..."
                         )
-                        usage = disk_usage("/tmp")
+                        usage = disk_usage(scratch)
                         await asyncio.gather(*tasks)
                         tasks = []
                         await asyncio.sleep(delay)

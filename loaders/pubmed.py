@@ -32,10 +32,11 @@ class PubMedDataSource(RecursiveTgzDataSource):
     def urls(self) -> list[str]:
         if mini_pipeline:
             return [
-                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2025-01-01.filelist.csv",
-                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/txt/oa_comm_txt.incr.2025-01-01.tar.gz",
+                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.incr.2025-01-01.filelist.csv",
+                "https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/oa_comm_xml.incr.2025-01-01.tar.gz",
             ]
-        return ["https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/"]
+        return ["https://ftp.ncbi.nlm.nih.gov/pub/pmc/oa_bulk/oa_comm/xml/",
+                ]
 
     async def _select(self, df: DataFrame) -> DataFrame:
         return (
@@ -80,9 +81,10 @@ class PubMedDataSource(RecursiveTgzDataSource):
     async def _final_select(self, df: DataFrame) -> DataFrame:
         # Here we're a little different since we're doing a join.
         # Always read from S3A _unless_ we're in miniepipeline mode
-        path = f"s3a://{minio_bucket}/Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*/*/*.txt"
+        raise Exception("Nope")
+        path = f"s3a://{minio_bucket}/Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*/*/*.xml"
         if mini_pipeline:
-            path = "./Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*/*/*.txt"
+            path = "./Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*/*/*.xml"
         spark = SparkSession.builder.getOrCreate()
         text_files = (
             spark.read.format("text")
