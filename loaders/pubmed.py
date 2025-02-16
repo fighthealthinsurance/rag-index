@@ -19,11 +19,10 @@ class PubMedDataSource(RecursiveTgzDataSource):
     name = "pubmed"
     flattern = False
     input_options = {
-        "recursiveFileLookup": "True",
-        "header": "True",
+        "rowTag": "article",
     }
     # match the filelist csvs
-    match_condition = "ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*/*/*.xml.gz"
+    match_condition = "ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*/*/*.xml*"
     input_format = "com.databricks.spark.xml"
     directory_name = "recursive_pubmed_oa"
     target_partitions = 10000
@@ -39,17 +38,10 @@ class PubMedDataSource(RecursiveTgzDataSource):
                 ]
 
     async def _select(self, df: DataFrame) -> DataFrame:
-        return (
-            df.withColumn("file_name", split(df["Article File"], "/").getItem(1))
-            .withColumn("csv_input_file_name", input_file_name())
-            .withColumn(
-                "artifact_file_path",
-                regexp_replace(input_file_name(), "\\.filelist\\.csv$", ".tar.gz"),
-            )
-        )
+        return df
 
     async def _filter(self, df: DataFrame) -> DataFrame:
-        return df.filter(df["Retracted"] != "yes")
+        return df
 
     async def _extract(self):
         if mini_pipeline:
