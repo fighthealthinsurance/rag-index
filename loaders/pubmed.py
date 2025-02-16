@@ -23,8 +23,8 @@ class PubMedDataSource(RecursiveTgzDataSource):
         "header": "True",
     }
     # match the filelist csvs
-    match_condition = "ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*.filelist.csv"
-    input_format = "csv"
+    match_condition = "ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*/*/*.xml.gz"
+    input_format = "com.databricks.spark.xml"
     directory_name = "recursive_pubmed_oa"
     target_partitions = 10000
 
@@ -81,20 +81,6 @@ class PubMedDataSource(RecursiveTgzDataSource):
     async def _final_select(self, df: DataFrame) -> DataFrame:
         # Here we're a little different since we're doing a join.
         # Always read from S3A _unless_ we're in miniepipeline mode
-        raise Exception("Nope")
-        path = f"s3a://{minio_bucket}/Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*/*/*.xml"
-        if mini_pipeline:
-            path = "./Downloads/recursive_pubmed_oa/ftp.ncbi.nlm.nih.gov/pub/pmc/oa_*/*/*/*/*/*.xml"
-        spark = SparkSession.builder.getOrCreate()
-        text_files = (
-            spark.read.format("text")
-            .option("wholeText", "True")
-            .load(path)
-            .withColumn("txt_input_file_name", input_file_name())
-            .withColumn("file_name", element_at(split(input_file_name(), "/"), -1))
-            .withColumnRenamed("value", "text")
-        )
         df.show(truncate=True)
-        text_files.show(truncate=True)
-        joined = df.join(text_files, on="file_name")
+        raise Exception("nope")
         return joined

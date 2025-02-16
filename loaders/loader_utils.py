@@ -157,7 +157,7 @@ async def download_file_if_not_existing(target_file: str, urls: list[str]) -> No
         # Make sure download is valid
         await _check_or_remove_file(target_file)
     # Upload to s3 if configured
-    if s3_session is not None:
+    if s3_session is not None and not mini_pipeline:
         async with create_s3_client() as client:
             print(f"Uploading {target_file}")
             await asyncio.sleep(0)
@@ -242,14 +242,6 @@ async def _upload_file(
                             except:
                                 # Again avoid using the Python gzip lib for perf
                                 await check_call(["gzip", str(extracted_file_path)])
-                                # Non blocking fire and forget delete decompressed remote object
-                                asyncio.create_task(
-                                    _delete_object(
-                                        client,
-                                        Bucket=s3_bucket,
-                                        Key=str(remote_path),
-                                    )
-                                )
                                 tasks.append(
                                     _upload_file(
                                         pathlib.Path(f"{str(extracted_file_path)}.gz"),

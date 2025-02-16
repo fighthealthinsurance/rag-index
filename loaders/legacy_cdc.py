@@ -17,7 +17,8 @@ class LegacyCDC(CompressedRagDataSource):
     directory_name = "legacy_cdc"
     name = "legacy_pre_feb2025_cdc"
     decompress_needed = True  # zip of textfiles
-    extracted_dir = oivey2025_cdc
+    extracted_dir = "oivey2025_cdc"
+    filename = "20250128-cdc-datasets.zip"
 
     @property
     def urls(self) -> list[str]:
