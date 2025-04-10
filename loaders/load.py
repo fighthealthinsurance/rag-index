@@ -16,14 +16,14 @@ async def magic(spark: SparkSession) -> list[DataFrame]:
     data_sources = [
         ArxivDataSource(),
         PubMedDataSource(),
-        MedlineDataSource(),
+#        MedlineDataSource(),
         WikipediaDataSource(),
     ]
     if mini_pipeline:
         data_sources = [
             PubMedDataSource(),
-            MedlineDataSource(),
-            LegacyCDC(),
+#            MedlineDataSource(),
+#            LegacyCDC(),
         ]
     results = map(lambda x: x.load(spark), data_sources)
     main_bloop: list[DataFrame] = await asyncio.gather(*results)

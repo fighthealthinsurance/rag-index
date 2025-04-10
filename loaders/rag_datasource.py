@@ -38,7 +38,7 @@ class RagDataSource:
             read_call = read_call.options(**{k: v})
         path = self.path()
         loaded = read_call.load(dl_local_or_minio_path(path))
-        print(f"Loaded {path} w/schema {loaded.schema} & columns {loaded.columns}")
+        print(f"Loaded {path} w/columns {loaded.columns}")
         loaded.show()
         return loaded
 

@@ -7,13 +7,22 @@ from pyspark.sql.functions import (
     regexp_replace,
     split,
     udf,
-    element_at,
+    element_at
 )
 from pyspark.sql.types import StringType
+from pyspark.sql.functions import udf, explode
+
 
 from .loader_utils import *
 from .rag_datasource import *
 
+@udf
+def extract_journal_title_udf(x) -> str:
+    return str(x)
+
+@udf
+def extract_article_title_udf(x) -> str:
+    return str(x)
 
 class PubMedDataSource(RecursiveTgzDataSource):
     name = "pubmed"
@@ -38,7 +47,25 @@ class PubMedDataSource(RecursiveTgzDataSource):
                 ]
 
     async def _select(self, df: DataFrame) -> DataFrame:
-        return df
+        selected = df.select(
+            df["front"]["journal-meta"]["journal-id"].alias("journal_ids"),
+            extract_journal_title_udf(df["front"]["journal-meta"]["journal-title-group"]["journal-title"]).alias("journal_titles"),
+            extract_article_title_udf(df["front"]["article-meta"]["title-group"]["article-title"]).alias("article_title"),
+            explode(df["front"]["article-meta"]["article-id"]).alias("exploded"),
+            flatten_text_udf(df["front"]["article-meta"]["abstract"]).alias("abstract"),
+            flatten_text_udf(df["body"]).alias("text")
+        )
+        withpubmed_ids = selected.filter(
+            selected["exploded"]["_pub-id-type"] == "pmid").select(
+                "journal_ids",
+                "journal_titles",
+                "article_title",
+                "abstract",
+                "text",
+                selected["exploded"]["_VALUE"].alias("pubmed_id")
+            )
+        withpubmed_ids.show()
+        return withpubmed_ids
 
     async def _filter(self, df: DataFrame) -> DataFrame:
         return df
@@ -71,8 +98,5 @@ class PubMedDataSource(RecursiveTgzDataSource):
                         print(f"Skipping {file_path}")
 
     async def _final_select(self, df: DataFrame) -> DataFrame:
-        # Here we're a little different since we're doing a join.
-        # Always read from S3A _unless_ we're in miniepipeline mode
         df.show(truncate=True)
-        raise Exception("nope")
-        return joined
+        return df

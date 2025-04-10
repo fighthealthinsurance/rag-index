@@ -20,6 +20,25 @@ from pyspark.sql.functions import lit, regexp, regexp_extract_all
 
 from .minio_settings import *
 
+from pyspark.sql.functions import udf
+from pyspark.sql.types import StringType
+import json
+
+def extract_text(value):
+    """Recursively extracts text from nested structures."""
+    if isinstance(value, str):
+        return value
+    elif isinstance(value, (list, tuple, set)):
+        return " ".join(filter(None, [extract_text(v) for v in value]))
+    elif isinstance(value, dict):
+        return " ".join(filter(None, [extract_text(v) for v in value.values()]))
+    else:
+        return ""
+
+# Define the UDF
+flatten_text_udf = udf(lambda x: extract_text(x), StringType())
+
+
 url_regex = r"(https?|ftp)://[a-zA-Z0-9.-]+(?:\.[a-zA-Z]{2,})+(/[^\s]*)?"
 doi_regex = r"10\.\d{4,9}/[-._;()/:A-Z0-9]+"
 semi_legit = r"(nih\.gov|Category:Nutrition|modernmedicine|PLOS Medicine|Portal bar \.+Medicine|World Health Organization|https?://[a-z\.A-Z]*cihr-irsc\.gc\.ca|https?://[a-z\.A-Z]*nihr\.ac\.uk|nhs\.uk)"
